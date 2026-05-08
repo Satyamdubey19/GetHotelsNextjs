@@ -10,7 +10,12 @@ import Checkbox from '@/components/ui/Checkbox';
 import FormLabel from '@/components/ui/FormLabel';
 import SocialAuthButton from '@/components/ui/SocialAuthButton';
 import { useAuth } from '@/contexts/AuthContext';
+import type { AuthRole } from '@/contexts/AuthContext';
 import { signIn } from 'next-auth/react';
+
+type LoginFormProps = {
+  expectedRole?: AuthRole;
+}
 function GoogleIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5" aria-hidden="true">
@@ -22,7 +27,7 @@ function GoogleIcon() {
   );
 }
 
-export default function LoginForm() {
+export default function LoginForm({ expectedRole }: LoginFormProps) {
   const router = useRouter();
   const { login } = useAuth();
   const [email, setEmail] = useState('');
@@ -31,6 +36,7 @@ export default function LoginForm() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const isAdminLogin = expectedRole === 'ADMIN';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,7 +54,7 @@ export default function LoginForm() {
 
     setLoading(true);
     try {
-      const user = await login(email, password);
+      const user = await login(email, password, expectedRole);
       router.push(user.role === 'ADMIN' ? '/admin' : user.role === 'HOST' ? '/host' : '/');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to login. Please try again.');
@@ -73,7 +79,9 @@ export default function LoginForm() {
 
       <form onSubmit={handleSubmit} className="space-y-5">
         <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-          Sign in with your email and password. Your account role will be detected automatically.
+          {isAdminLogin
+            ? 'Sign in with an admin account. Non-admin accounts will be blocked from this workspace.'
+            : 'Sign in with your email and password. Your account role will be detected automatically.'}
         </div>
 
         {/* Email Field */}
@@ -151,42 +159,48 @@ export default function LoginForm() {
         </Button>
       </form>
 
-      <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-        Demo admin credentials: <span className="font-semibold">admin@gethotels.com</span> / <span className="font-semibold">Admin@123</span>
-      </div>
-
-      {/* Divider */}
-      <div className="relative my-6">
-        <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-slate-300"></div>
+      {isAdminLogin && (
+        <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          Demo admin credentials: <span className="font-semibold">admin@gethotels.com</span> / <span className="font-semibold">Admin@123</span>
         </div>
-        <div className="relative flex justify-center text-sm">
-          <span className="bg-white px-3 text-slate-500 font-medium">Or continue with</span>
-        </div>
-      </div>
+      )}
 
-      {/* Social Login Buttons */}
-      <div className="mb-6">
-        <SocialAuthButton
-          icon={<GoogleIcon />}
-          label="Google"
-          onClick={handleSocialLogin}
-          className="w-full"
-        />
-      </div>
+      {!isAdminLogin && (
+        <>
+          {/* Divider */}
+          <div className="relative my-6">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-slate-300"></div>
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="bg-white px-3 text-slate-500 font-medium">Or continue with</span>
+            </div>
+          </div>
 
-      {/* Sign Up Link */}
-      <div className="text-center">
-        <p className="text-slate-600 text-sm">
-          Don&apos;t have an account?{' '}
-          <Link
-            href="/signup"
-            className="font-semibold text-sky-600 hover:text-sky-700 transition"
-          >
-            Sign Up
-          </Link>
-        </p>
-      </div>
+          {/* Social Login Buttons */}
+          <div className="mb-6">
+            <SocialAuthButton
+              icon={<GoogleIcon />}
+              label="Google"
+              onClick={handleSocialLogin}
+              className="w-full"
+            />
+          </div>
+
+          {/* Sign Up Link */}
+          <div className="text-center">
+            <p className="text-slate-600 text-sm">
+              Don&apos;t have an account?{' '}
+              <Link
+                href="/signup"
+                className="font-semibold text-sky-600 hover:text-sky-700 transition"
+              >
+                Sign Up
+              </Link>
+            </p>
+          </div>
+        </>
+      )}
     </div>
   );
 }

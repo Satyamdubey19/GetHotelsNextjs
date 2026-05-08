@@ -33,6 +33,17 @@ export type Tour = {
   };
 };
 
+const tourImages = [
+  "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=80",
+  "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?auto=format&fit=crop&w=1200&q=80",
+  "https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?auto=format&fit=crop&w=1200&q=80",
+  "https://images.unsplash.com/photo-1524492412937-b28074a5d7da?auto=format&fit=crop&w=1200&q=80",
+  "https://images.unsplash.com/photo-1519046904884-53103b34b206?auto=format&fit=crop&w=1200&q=80",
+  "https://images.unsplash.com/photo-1483683804023-6ccdb62f86ef?auto=format&fit=crop&w=1200&q=80",
+  "https://images.unsplash.com/photo-1548013146-72479768bada?auto=format&fit=crop&w=1200&q=80",
+  "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80",
+]
+
 export const tours: Tour[] = [
   {
     id: "tour-1",
@@ -50,8 +61,8 @@ export const tours: Tour[] = [
     groupSize: "4-10 people",
     rating: 4.7,
     reviews: 128,
-    image: "/tour1.jpg",
-    gallery: ["/tour1.jpg", "/tour1-2.jpg", "/tour1-3.jpg", "/tour1-4.jpg"],
+    image: tourImages[0],
+    gallery: [tourImages[0], tourImages[1], tourImages[6], tourImages[7]],
     description:
       "Experience the breathtaking beauty of the Himalayas with this 5-day adventure. Trek through pristine landscapes, visit the famous Rohtang Pass, and enjoy adventure activities including paragliding and mountain biking.",
     highlights: [
@@ -142,8 +153,8 @@ export const tours: Tour[] = [
     groupSize: "2-8 people",
     rating: 4.9,
     reviews: 245,
-    image: "/tour2.jpg",
-    gallery: ["/tour2.jpg", "/tour2-2.jpg", "/tour2-3.jpg", "/tour2-4.jpg"],
+    image: tourImages[2],
+    gallery: [tourImages[2], tourImages[7], tourImages[4], tourImages[5]],
     description:
       "Discover the serene backwaters of Kerala with houseboat cruises, visit pristine beaches, and experience authentic Kerala cuisine and culture.",
     highlights: [
@@ -225,8 +236,8 @@ export const tours: Tour[] = [
     groupSize: "4-12 people",
     rating: 4.8,
     reviews: 189,
-    image: "/tour3.jpg",
-    gallery: ["/tour3.jpg", "/tour3-2.jpg", "/tour3-3.jpg"],
+    image: tourImages[3],
+    gallery: [tourImages[3], tourImages[6], tourImages[0]],
     description: "Immerse yourself in the royal heritage of Rajasthan. Explore majestic forts, ornate palaces, and vibrant bazaars across the Pink City and the City of Lakes.",
     highlights: ["Amber Fort", "City Palace Udaipur", "Lake Pichola boat ride", "Desert safari", "Traditional Rajasthani dinner", "Hawa Mahal"],
     category: "cultural",
@@ -258,8 +269,8 @@ export const tours: Tour[] = [
     groupSize: "2-6 people",
     rating: 4.6,
     reviews: 312,
-    image: "/tour4.jpg",
-    gallery: ["/tour4.jpg", "/tour4-2.jpg", "/tour4-3.jpg"],
+    image: tourImages[4],
+    gallery: [tourImages[4], tourImages[7], tourImages[2]],
     description: "Unwind on the golden beaches of Goa with this perfect beach getaway. Enjoy water sports, nightlife, Portuguese architecture, and delicious Goan cuisine.",
     highlights: ["Baga Beach", "Old Goa churches", "Water sports", "Dudhsagar Falls", "Goan seafood", "Nightlife experience"],
     category: "relaxation",
@@ -288,8 +299,8 @@ export const tours: Tour[] = [
     groupSize: "4-8 people",
     rating: 4.5,
     reviews: 97,
-    image: "/tour5.jpg",
-    gallery: ["/tour5.jpg", "/tour5-2.jpg", "/tour5-3.jpg"],
+    image: tourImages[5],
+    gallery: [tourImages[5], tourImages[0], tourImages[1]],
     description: "Embark on a thrilling wildlife safari in India's oldest national park. Spot Bengal tigers, elephants, and exotic birds in their natural habitat.",
     highlights: ["Tiger safari", "Elephant ride", "Bird watching", "River rafting", "Nature walks", "Jungle campfire"],
     category: "adventure",
@@ -319,8 +330,8 @@ export const tours: Tour[] = [
     groupSize: "2-6 people",
     rating: 4.8,
     reviews: 156,
-    image: "/tour6.jpg",
-    gallery: ["/tour6.jpg", "/tour6-2.jpg", "/tour6-3.jpg"],
+    image: tourImages[7],
+    gallery: [tourImages[7], tourImages[2], tourImages[4]],
     description: "Escape to the pristine islands of Andaman with crystal-clear waters, white sand beaches, and extraordinary marine life. Perfect for snorkeling and scuba diving enthusiasts.",
     highlights: ["Radhanagar Beach", "Scuba diving", "Cellular Jail", "Glass-bottom boat", "Snorkeling at Elephant Beach", "Limestone caves"],
     category: "relaxation",

@@ -3,10 +3,9 @@
 import axios from '@/lib/axios'
 import { Globe, LoaderCircle, LocateFixed, MapPin, RefreshCw } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import type { LocationSource } from '@/types/search'
 
 const CACHE_DURATION = 30 * 60 * 1000
-
-type LocationSource = 'gps' | 'ip' | null
 
 export default function LocationDetector() {
   const [location, setLocation] = useState("Detecting location...")

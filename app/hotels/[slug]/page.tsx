@@ -5,75 +5,85 @@ import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import Header from '@/components/layout/Header/Header'
 import Footer from '@/components/layout/Footer/Footer'
-import { hotels } from '@/lib/hotels'
+import type { FilledIconProps, IconProps } from '@/types/component-props'
+import type { Hotel } from '@/lib/hotels'
+import { useWishlist } from '@/contexts/WishlistContext'
 import HotelGallery from '@/components/hotel/HotelGallery'
 import HotelReviews from '@/components/hotel/HotelReviews'
 import MapSection from '@/components/hotel/MapSection'
+import {
+  BadgeCheck,
+  Banknote,
+  ConciergeBell,
+  CreditCard,
+  MapPinned,
+  MessageCircle,
+  ShieldCheck,
+  Sparkles as LucideSparkles,
+} from 'lucide-react'
 
-/* ── SVG Icon Components ─────────────────────────────────── */
-const StarIcon = ({ className = 'w-5 h-5' }: { className?: string }) => (
+const StarIcon = ({ className = 'w-5 h-5' }: IconProps) => (
   <svg className={className} fill="currentColor" viewBox="0 0 24 24"><path d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.007 5.404.433c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.433 2.082-5.006z" /></svg>
 )
-const MapPinIcon = ({ className = 'w-5 h-5' }: { className?: string }) => (
+const MapPinIcon = ({ className = 'w-5 h-5' }: IconProps) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" /></svg>
 )
-const HeartIcon = ({ className = 'w-5 h-5', filled = false }: { className?: string; filled?: boolean }) => (
+const HeartIcon = ({ className = 'w-5 h-5', filled = false }: FilledIconProps) => (
   <svg className={className} fill={filled ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" /></svg>
 )
-const ShareIcon = ({ className = 'w-5 h-5' }: { className?: string }) => (
+const ShareIcon = ({ className = 'w-5 h-5' }: IconProps) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186l9.566-5.314m-9.566 7.5l9.566 5.314m0 0a2.25 2.25 0 103.935 2.186 2.25 2.25 0 00-3.935-2.186zm0-12.814a2.25 2.25 0 103.933-2.185 2.25 2.25 0 00-3.933 2.185z" /></svg>
 )
-const CheckCircleIcon = ({ className = 'w-5 h-5' }: { className?: string }) => (
+const CheckCircleIcon = ({ className = 'w-5 h-5' }: IconProps) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
 )
-const CalendarIcon = ({ className = 'w-5 h-5' }: { className?: string }) => (
+const CalendarIcon = ({ className = 'w-5 h-5' }: IconProps) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" /></svg>
 )
-const UsersIcon = ({ className = 'w-5 h-5' }: { className?: string }) => (
+const UsersIcon = ({ className = 'w-5 h-5' }: IconProps) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" /></svg>
 )
-const ShieldIcon = ({ className = 'w-5 h-5' }: { className?: string }) => (
+const ShieldIcon = ({ className = 'w-5 h-5' }: IconProps) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" /></svg>
 )
-const CameraIcon = ({ className = 'w-5 h-5' }: { className?: string }) => (
+const CameraIcon = ({ className = 'w-5 h-5' }: IconProps) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0z" /></svg>
 )
-const ClockIcon = ({ className = 'w-5 h-5' }: { className?: string }) => (
+const ClockIcon = ({ className = 'w-5 h-5' }: IconProps) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
 )
-const SparklesIcon = ({ className = 'w-5 h-5' }: { className?: string }) => (
+const SparklesIcon = ({ className = 'w-5 h-5' }: IconProps) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 00-2.455 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z" /></svg>
 )
-const BoltIcon = ({ className = 'w-5 h-5' }: { className?: string }) => (
+const BoltIcon = ({ className = 'w-5 h-5' }: IconProps) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" /></svg>
 )
-const XMarkIcon = ({ className = 'w-5 h-5' }: { className?: string }) => (
+const XMarkIcon = ({ className = 'w-5 h-5' }: IconProps) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" /></svg>
 )
 
-/* ── Amenity Icon Map ─────────────────────────────────────── */
-const PoolIcon = ({ className = 'w-5 h-5' }: { className?: string }) => (
+const PoolIcon = ({ className = 'w-5 h-5' }: IconProps) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 20.25c1.5 0 2.25-.75 3-1.5s1.5-1.5 3-1.5 2.25.75 3 1.5 1.5 1.5 3 1.5 2.25-.75 3-1.5 1.5-1.5 3-1.5M3 16.5c1.5 0 2.25-.75 3-1.5s1.5-1.5 3-1.5 2.25.75 3 1.5 1.5 1.5 3 1.5 2.25-.75 3-1.5 1.5-1.5 3-1.5M6 3v10M18 3v10" /></svg>
 )
-const UtensilsIcon = ({ className = 'w-5 h-5' }: { className?: string }) => (
+const UtensilsIcon = ({ className = 'w-5 h-5' }: IconProps) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8.25v-1.5m0 1.5c-1.355 0-2.697.056-4.024.166C6.845 8.51 6 9.473 6 10.608v2.513m6-4.87c1.355 0 2.697.055 4.024.165C17.155 8.51 18 9.473 18 10.608v2.513m-3-4.87v-1.5m-6 1.5v-1.5m12 9.75l-1.5.75a3.354 3.354 0 01-3 0 3.354 3.354 0 00-3 0 3.354 3.354 0 01-3 0 3.354 3.354 0 00-3 0 3.354 3.354 0 01-3 0L3 16.5m15-3.38a48.474 48.474 0 00-6-.37c-2.032 0-4.034.126-6 .37m12 0c.39.049.777.102 1.163.16 1.07.16 1.837 1.094 1.837 2.175v5.17c0 .62-.504 1.124-1.125 1.124H4.125A1.125 1.125 0 013 20.625v-5.17c0-1.08.768-2.014 1.837-2.174A47.78 47.78 0 016 13.12M12.265 3.11a.375.375 0 11-.53 0L12 2.845l.265.265z" /></svg>
 )
-const DumbbellIcon = ({ className = 'w-5 h-5' }: { className?: string }) => (
+const DumbbellIcon = ({ className = 'w-5 h-5' }: IconProps) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25H12" /></svg>
 )
-const WifiIcon = ({ className = 'w-5 h-5' }: { className?: string }) => (
+const WifiIcon = ({ className = 'w-5 h-5' }: IconProps) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8.288 15.038a5.25 5.25 0 017.424 0M5.106 11.856c3.807-3.808 9.98-3.808 13.788 0M1.924 8.674c5.565-5.565 14.587-5.565 20.152 0M12.53 18.22l-.53.53-.53-.53a.75.75 0 011.06 0z" /></svg>
 )
-const CarIcon = ({ className = 'w-5 h-5' }: { className?: string }) => (
+const CarIcon = ({ className = 'w-5 h-5' }: IconProps) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 00-3.213-9.193 2.056 2.056 0 00-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 00-10.026 0 1.106 1.106 0 00-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12" /></svg>
 )
-const BellIcon = ({ className = 'w-5 h-5' }: { className?: string }) => (
+const BellIcon = ({ className = 'w-5 h-5' }: IconProps) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" /></svg>
 )
-const HomeIcon = ({ className = 'w-5 h-5' }: { className?: string }) => (
+const HomeIcon = ({ className = 'w-5 h-5' }: IconProps) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" /></svg>
 )
-const ThermometerIcon = ({ className = 'w-5 h-5' }: { className?: string }) => (
+const ThermometerIcon = ({ className = 'w-5 h-5' }: IconProps) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v6m3-3H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
 )
 
@@ -104,30 +114,74 @@ const amenityList = [
   'Parking', 'Concierge', 'Daily Housekeeping', 'Climate Control',
 ]
 
-/* ── Room Type Data ───────────────────────────────────────── */
-const BedIcon = ({ className = 'w-5 h-5' }: { className?: string }) => (
+type HotelRoom = {
+  id: string
+  name: string
+  type: string
+  description?: string | null
+  pricePerNight: number | string
+  originalPrice?: number | string | null
+  capacity: number
+  totalRooms: number
+  availableRooms?: number
+  dateAvailableRooms?: number
+  isAvailableForDates?: boolean
+  bedConfiguration?: string | null
+  sizeSqFt?: number | null
+  viewType?: string | null
+  amenities?: string[]
+  images?: string[]
+}
+
+type HotelDetail = Hotel & {
+  Room?: HotelRoom[]
+}
+
+const getDateInputValue = (offsetDays = 0) => {
+  const date = new Date()
+  date.setDate(date.getDate() + offsetDays)
+  return date.toISOString().split('T')[0]
+}
+
+const todayInputValue = getDateInputValue()
+const tomorrowInputValue = getDateInputValue(1)
+
+const BedIcon = ({ className = 'w-5 h-5' }: IconProps) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008z" /></svg>
 )
-const ExpandIcon = ({ className = 'w-5 h-5' }: { className?: string }) => (
+const ExpandIcon = ({ className = 'w-5 h-5' }: IconProps) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" /></svg>
 )
 
 export default function HotelDetailPage() {
   const params = useParams()
   const slug = typeof params.slug === 'string' ? params.slug : ''
-  const hotel = hotels.find((h) => h.slug === slug)
-  const [liked, setLiked] = useState(false)
+  const [hotel, setHotel] = useState<HotelDetail | null>(null);
+  const { isInWishlist, addToWishlist, removeFromWishlist } = useWishlist()
+  const liked = isInWishlist(slug, 'hotel')
+  const handleWishlist = () => {
+    if (liked) {
+      removeFromWishlist(slug, 'hotel')
+    } else {
+      addToWishlist({
+        id: hotel?.id ?? slug,
+        slug: hotel?.slug ?? slug,
+        title: hotel?.title ?? '',
+        image: hotel?.image ?? '',
+        price: hotel?.price ?? 0,
+        type: 'hotel',
+      })
+    }
+  }
   const [copied, setCopied] = useState(false)
   const [showStickyNav, setShowStickyNav] = useState(false)
   const [guests, setGuests] = useState(1)
   const [activeTab, setActiveTab] = useState<'rooms' | 'amenities' | 'reviews' | 'rules'>('rooms')
-
-  // Booking modal state
   const [showBookingModal, setShowBookingModal] = useState(false)
   const [bookingStep, setBookingStep] = useState<1 | 2 | 3>(1)
-  const [selectedRoom, setSelectedRoom] = useState<'deluxe' | 'premium'>('deluxe')
-  const [checkIn, setCheckIn] = useState('')
-  const [checkOut, setCheckOut] = useState('')
+  const [selectedRoom, setSelectedRoom] = useState('')
+  const [checkIn, setCheckIn] = useState(todayInputValue)
+  const [checkOut, setCheckOut] = useState(tomorrowInputValue)
   const [specialRequests, setSpecialRequests] = useState('')
   const [promoCode, setPromoCode] = useState('')
   const [promoApplied, setPromoApplied] = useState(false)
@@ -136,6 +190,8 @@ export default function HotelDetailPage() {
   const [contactPhone, setContactPhone] = useState('')
   const [bookingConfirmed, setBookingConfirmed] = useState(false)
   const [bookingId, setBookingId] = useState('')
+  const [bookingError, setBookingError] = useState('')
+  const [bookingLoading, setBookingLoading] = useState(false)
 
   useEffect(() => {
     const onScroll = () => setShowStickyNav(window.scrollY > 400)
@@ -143,7 +199,54 @@ export default function HotelDetailPage() {
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
-  // Lock body scroll when modal is open
+  useEffect(()=>{
+    const fetchbySlug = async () => {
+      try {
+        const params = new URLSearchParams()
+        if (checkIn && checkOut) {
+          params.set('checkIn', checkIn)
+          params.set('checkOut', checkOut)
+        }
+        const response = await fetch(`/api/hotel/${slug}${params.toString() ? `?${params.toString()}` : ''}`)
+        if (response.ok) {
+          const data = await response.json()
+          const raw = data.data
+          const minPrice = raw.Room?.length
+            ? Math.min(...raw.Room.map((r: { pricePerNight: number }) => r.pricePerNight))
+            : 0
+          const normalized = {
+            ...raw,
+            title: raw.title ?? raw.name,
+            gallery: (raw.HotelImage ?? []).map((img: { url: string }) => img.url),
+            price: minPrice,
+            rating: raw.averageRating ?? 0,
+            location: raw.address ? `${raw.address}, ${raw.city}` : raw.city,
+            reviews: (raw.Review ?? []).map((r: { id: string; rating: number; comment: string; createdAt: string; User?: { name?: string } }) => ({
+              id: r.id,
+              name: r.User?.name ?? 'Guest',
+              rating: r.rating,
+              text: r.comment ?? '',
+              date: new Date(r.createdAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+            })),
+            rules: (raw.HotelRule ?? []).map((r: { rule: string }) => r.rule),
+          }
+          setHotel(normalized)
+          const rooms = (raw.Room ?? []) as HotelRoom[]
+          if (rooms.length > 0 && (!selectedRoom || !rooms.some((room) => room.id === selectedRoom))) {
+            setSelectedRoom(rooms[0].id)
+          }
+        } else {
+          console.error('Failed to fetch hotel data')
+        }
+      } catch (error) {
+        console.error('Error fetching hotel data:', error)
+      }
+    }
+    if (slug) {
+      fetchbySlug()
+    }
+  }, [slug, checkIn, checkOut, selectedRoom]);
+
   useEffect(() => {
     if (showBookingModal) {
       document.body.style.overflow = 'hidden'
@@ -152,6 +255,7 @@ export default function HotelDetailPage() {
     }
     return () => { document.body.style.overflow = '' }
   }, [showBookingModal])
+
 
   if (!hotel) {
     return (
@@ -185,20 +289,66 @@ export default function HotelDetailPage() {
     }
   }
 
-  const todayStr = new Date().toISOString().split('T')[0]
-  const tomorrowStr = new Date(Date.now() + 86400000).toISOString().split('T')[0]
+  const todayStr = todayInputValue
+  const tomorrowStr = tomorrowInputValue
+  const rooms = hotel.Room ?? []
+  const firstRoom = rooms[0]
+  const secondRoom = rooms[1]
+  const selectedRoomData = rooms.find((room) => room.id === selectedRoom) ?? rooms[0]
+  const hasDateRange = Boolean(checkIn && checkOut)
+  const selectedRoomAvailableCount = hasDateRange
+    ? selectedRoomData?.dateAvailableRooms ?? selectedRoomData?.totalRooms ?? 0
+    : selectedRoomData?.totalRooms ?? 0
+  const selectedRoomIsAvailable = Boolean(selectedRoomData && selectedRoomAvailableCount > 0)
 
-  const roomPrice = selectedRoom === 'premium' ? Math.round(hotel.price * 1.5) : hotel.price
+  const roomPrice = Number(selectedRoomData?.pricePerNight ?? hotel.price)
   const nights = checkIn && checkOut ? Math.max(1, Math.round((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / 86400000)) : 1
   const subtotal = roomPrice * nights
   const discount = promoApplied ? Math.round(subtotal * 0.1) : 0
   const tax = Math.round((subtotal - discount) * 0.12)
   const total = subtotal - discount + tax
+  const stayHighlights = [
+    {
+      icon: ShieldCheck,
+      title: 'Verified host',
+      text: 'Property details, amenities, and guest policies are reviewed for cleaner decisions.',
+      color: 'bg-emerald-50 text-emerald-700',
+    },
+    {
+      icon: CreditCard,
+      title: 'Secure checkout',
+      text: 'Transparent taxes, promo savings, and room totals before confirmation.',
+      color: 'bg-blue-50 text-blue-700',
+    },
+    {
+      icon: ConciergeBell,
+      title: 'Stay support',
+      text: 'Get help with check-in, room requests, and local arrangements during your trip.',
+      color: 'bg-violet-50 text-violet-700',
+    },
+    {
+      icon: MapPinned,
+      title: 'Prime area',
+      text: `Easy access around ${hotel.city} with nearby experiences and flexible tour planning.`,
+      color: 'bg-rose-50 text-rose-700',
+    },
+  ]
+  const localConfidence = [
+    { label: 'Check-in flow', value: 'Digital + desk', icon: BadgeCheck },
+    { label: 'Best for', value: 'Couples, families', icon: ConciergeBell },
+    { label: 'Payments', value: 'Cards and UPI', icon: CreditCard },
+  ]
+  const arrivalPlan = [
+    'Reserve room and confirm guest details',
+    `Reach ${hotel.city} and use the in-app location guide`,
+    'Meet the concierge for local dining and activity picks',
+  ]
 
-  const openBooking = (room?: 'deluxe' | 'premium') => {
-    if (room) setSelectedRoom(room)
+  const openBooking = (roomId?: string) => {
+    if (roomId) setSelectedRoom(roomId)
     setBookingStep(1)
     setBookingConfirmed(false)
+    setBookingError('')
     setShowBookingModal(true)
   }
 
@@ -208,11 +358,45 @@ export default function HotelDetailPage() {
     }
   }
 
-  const handleConfirmBooking = () => {
-    const id = 'GH' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).substring(2, 6).toUpperCase()
-    setBookingId(id)
-    setBookingConfirmed(true)
-    setBookingStep(3)
+  const handleConfirmBooking = async () => {
+    if (!selectedRoomData) return
+
+    setBookingLoading(true)
+    setBookingError('')
+
+    try {
+      const response = await fetch('/api/booking', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          hotelId: hotel.id,
+          roomId: selectedRoomData.id,
+          checkIn,
+          checkOut,
+          quantity: 1,
+          adults: guests,
+          children: 0,
+          infants: 0,
+          contactName,
+          contactEmail,
+          contactPhone,
+          specialRequests,
+        }),
+      })
+
+      const result = await response.json().catch(() => null)
+      if (!response.ok) {
+        throw new Error(result?.error ?? 'Room is not available for the selected dates')
+      }
+
+      setBookingId(result?.data?.bookingCode ?? result?.data?.id ?? '')
+      setBookingStep(3)
+      setBookingConfirmed(true)
+    } catch (error) {
+      setBookingError(error instanceof Error ? error.message : 'Could not create booking')
+    } finally {
+      setBookingLoading(false)
+    }
   }
 
   const closeBookingModal = () => {
@@ -234,7 +418,6 @@ export default function HotelDetailPage() {
       <Header />
       <main>
 
-        {/* ── Hero Section ─────────────────────────────── */}
         <section className="relative h-[50vh] min-h-[380px] max-h-[520px] overflow-hidden">
           <div
             className="absolute inset-0 bg-cover bg-center transition-transform duration-700 scale-105"
@@ -254,7 +437,7 @@ export default function HotelDetailPage() {
               </nav>
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => setLiked(!liked)}
+                  onClick={handleWishlist}
                   className="w-10 h-10 rounded-full bg-white/15 hover:bg-white/25 backdrop-blur-md flex items-center justify-center transition-all hover:scale-110 duration-200"
                 >
                   <HeartIcon className={`w-5 h-5 transition-colors ${liked ? 'text-red-400 fill-red-400' : 'text-white'}`} filled={liked} />
@@ -370,6 +553,58 @@ export default function HotelDetailPage() {
 
         <div className="container mx-auto px-4 py-10 md:py-14 max-w-7xl">
 
+          <section className="mb-10 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            {stayHighlights.map((item) => (
+              <div key={item.title} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg">
+                <div className={`mb-4 flex size-11 items-center justify-center rounded-xl ${item.color}`}>
+                  <item.icon className="size-5" />
+                </div>
+                <h2 className="text-base font-bold text-slate-900">{item.title}</h2>
+                <p className="mt-2 text-sm leading-6 text-slate-600">{item.text}</p>
+              </div>
+            ))}
+          </section>
+
+          <section className="mb-14 overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-sm">
+            <div className="grid lg:grid-cols-[1.1fr_0.9fr]">
+              <div className="bg-[linear-gradient(135deg,#0f172a_0%,#1f2937_52%,#0e7490_100%)] p-6 text-white sm:p-8">
+                <p className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-white/75">
+                  <LucideSparkles className="size-3.5" />
+                  Stay planner
+                </p>
+                <h2 className="mt-5 max-w-xl text-2xl font-bold tracking-tight sm:text-3xl">A more complete stay view before you book.</h2>
+                <p className="mt-3 max-w-2xl text-sm leading-6 text-white/70">
+                  Compare the room, area, support, and arrival experience in one place so the page feels closer to a real booking product.
+                </p>
+                <div className="mt-6 grid gap-3 sm:grid-cols-3">
+                  {localConfidence.map((item) => (
+                    <div key={item.label} className="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur">
+                      <item.icon className="size-5 text-cyan-200" />
+                      <p className="mt-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-white/45">{item.label}</p>
+                      <p className="mt-1 text-sm font-bold text-white">{item.value}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="p-6 sm:p-8">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Arrival checklist</p>
+                <div className="mt-5 space-y-4">
+                  {arrivalPlan.map((item, index) => (
+                    <div key={item} className="flex gap-4">
+                      <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-slate-950 text-sm font-bold text-white">
+                        {index + 1}
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-slate-950">{item}</p>
+                        <p className="mt-1 text-xs leading-5 text-slate-500">This keeps the booking journey clear and less generic.</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </section>
+
           {/* ── Gallery ────────────────────────────────── */}
           <section className="mb-14">
             <div className="rounded-2xl overflow-hidden shadow-lg">
@@ -378,7 +613,7 @@ export default function HotelDetailPage() {
           </section>
 
           {/* ── About + Map row ────────────────────────── */}
-          <section className="mb-14 grid lg:grid-cols-2 gap-8">
+          <section className="mb-14 grid gap-8 lg:grid-cols-[0.9fr_1.1fr]">
             {/* About */}
             <div className="space-y-5 animate-fade-in-up">
               <div>
@@ -409,8 +644,8 @@ export default function HotelDetailPage() {
                   <div className="w-16 h-1 rounded-full bg-gradient-to-r from-rose-500 to-pink-500 mt-3" />
                 </div>
               </div>
-              <div className="rounded-2xl overflow-hidden border border-slate-200 shadow-sm">
-                <MapSection hotelId={hotel.slug} title={hotel.title} price={hotel.price} location={hotel.location} city={hotel.city} />
+              <div className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white p-3 shadow-sm">
+                <MapSection hotelId={hotel.slug} title={hotel.title} price={hotel.price} location={hotel.location} city={hotel.city} rating={hotel.rating} image={hotel.gallery?.[0]} />
               </div>
             </div>
           </section>
@@ -491,8 +726,12 @@ export default function HotelDetailPage() {
                             <WifiIcon className="w-3.5 h-3.5" /> Free WiFi
                           </span>
                         </div>
-                        <button onClick={() => openBooking('deluxe')} className="w-full py-2.5 px-3 bg-gradient-to-r from-slate-900 to-slate-700 text-white rounded-xl text-sm font-semibold hover:shadow-lg transition-shadow">
-                          Select Room
+                        <button
+                          onClick={() => firstRoom && ((hasDateRange ? firstRoom.dateAvailableRooms ?? firstRoom.totalRooms : firstRoom.totalRooms) > 0) ? openBooking(firstRoom.id) : undefined}
+                          disabled={!firstRoom || ((hasDateRange ? firstRoom.dateAvailableRooms ?? firstRoom.totalRooms : firstRoom.totalRooms) <= 0)}
+                          className={`w-full py-2.5 px-3 rounded-xl text-sm font-semibold transition-shadow ${firstRoom && ((hasDateRange ? firstRoom.dateAvailableRooms ?? firstRoom.totalRooms : firstRoom.totalRooms) > 0) ? 'bg-gradient-to-r from-slate-900 to-slate-700 text-white hover:shadow-lg' : 'bg-slate-200 text-slate-500 cursor-not-allowed'}`}
+                        >
+                          {firstRoom && ((hasDateRange ? firstRoom.dateAvailableRooms ?? firstRoom.totalRooms : firstRoom.totalRooms) > 0) ? 'Select Room' : 'Not available'}
                         </button>
                       </div>
                     </div>
@@ -534,8 +773,12 @@ export default function HotelDetailPage() {
                             <BedIcon className="w-3.5 h-3.5" /> King Bed
                           </span>
                         </div>
-                        <button onClick={() => openBooking('premium')} className="w-full py-2.5 px-3 bg-gradient-to-r from-slate-900 to-slate-700 text-white rounded-xl text-sm font-semibold hover:shadow-lg transition-shadow">
-                          Select Room
+                        <button
+                          onClick={() => secondRoom && ((hasDateRange ? secondRoom.dateAvailableRooms ?? secondRoom.totalRooms : secondRoom.totalRooms) > 0) ? openBooking(secondRoom.id) : undefined}
+                          disabled={!secondRoom || ((hasDateRange ? secondRoom.dateAvailableRooms ?? secondRoom.totalRooms : secondRoom.totalRooms) <= 0)}
+                          className={`w-full py-2.5 px-3 rounded-xl text-sm font-semibold transition-shadow ${secondRoom && ((hasDateRange ? secondRoom.dateAvailableRooms ?? secondRoom.totalRooms : secondRoom.totalRooms) > 0) ? 'bg-gradient-to-r from-slate-900 to-slate-700 text-white hover:shadow-lg' : 'bg-slate-200 text-slate-500 cursor-not-allowed'}`}
+                        >
+                          {secondRoom && ((hasDateRange ? secondRoom.dateAvailableRooms ?? secondRoom.totalRooms : secondRoom.totalRooms) > 0) ? 'Select Room' : 'Not available'}
                         </button>
                       </div>
                     </div>
@@ -667,13 +910,30 @@ export default function HotelDetailPage() {
             <aside className="space-y-6">
               <div className="lg:sticky lg:top-36 space-y-6 lg:max-h-[calc(100vh-10rem)] lg:overflow-y-auto scrollbar-thin">
                 {/* Booking Card */}
-                <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-lg shadow-slate-200/50">
-                  <div className="flex items-center justify-between mb-5">
-                    <h3 className="text-lg font-bold text-slate-900">Book Your Stay</h3>
-                    <span className="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-bold uppercase tracking-wider">
-                      Available
-                    </span>
+                <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl shadow-slate-200/60">
+                  <div className="border-b border-slate-100 bg-slate-950 p-5 text-white">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/60">
+                          <LucideSparkles className="size-3.5" />
+                          Best available rate
+                        </p>
+                        <h3 className="mt-2 text-lg font-bold">Book Your Stay</h3>
+                      </div>
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-400/15 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-emerald-200">
+                        <BadgeCheck className="size-3.5" />
+                        Available
+                      </span>
+                    </div>
+                    <div className="mt-5 flex items-end justify-between">
+                      <div>
+                        <p className="text-xs text-white/55">Starts from</p>
+                        <p className="text-2xl font-bold">Rs. {hotel.price.toLocaleString()}</p>
+                      </div>
+                      <p className="text-xs font-medium text-white/55">per night</p>
+                    </div>
                   </div>
+                  <div className="p-6">
 
                   {/* Date Selection */}
                   <div className="space-y-3 mb-5 pb-5 border-b border-slate-100">
@@ -732,7 +992,7 @@ export default function HotelDetailPage() {
                   {/* Price Breakdown */}
                   <div className="space-y-2.5 mb-5 pb-5 border-b border-slate-100">
                     <div className="flex justify-between items-center text-sm">
-                      <span className="text-slate-500">{selectedRoom === 'premium' ? 'Premium Suite' : 'Deluxe Room'} × {nights} {nights === 1 ? 'night' : 'nights'}</span>
+                      <span className="text-slate-500">{selectedRoomData?.name ?? 'Room'} × {nights} {nights === 1 ? 'night' : 'nights'}</span>
                       <span className="font-semibold text-slate-900">₹{subtotal.toLocaleString()}</span>
                     </div>
                     {promoApplied && (
@@ -758,7 +1018,7 @@ export default function HotelDetailPage() {
                   </button>
 
                   <button
-                    onClick={() => setLiked(!liked)}
+                    onClick={handleWishlist}
                     className={`w-full py-2.5 rounded-xl border text-sm font-semibold transition-all flex items-center justify-center gap-2 ${
                       liked
                         ? 'border-red-200 bg-red-50 text-red-600'
@@ -772,15 +1032,16 @@ export default function HotelDetailPage() {
                   {/* Trust Badges */}
                   <div className="mt-5 pt-5 border-t border-slate-100 space-y-2.5">
                     {[
-                      'Free cancellation up to 48 hours',
-                      'Instant confirmation',
-                      'Best price guaranteed',
-                    ].map((badge, i) => (
-                      <div key={i} className="flex items-center gap-2 text-xs">
-                        <CheckCircleIcon className="w-4 h-4 text-emerald-500 flex-shrink-0" />
-                        <span className="text-slate-600">{badge}</span>
+                      { icon: CheckCircleIcon, text: 'Free cancellation up to 48 hours' },
+                      { icon: MessageCircle, text: 'Host and trip support included' },
+                      { icon: Banknote, text: 'Best price guaranteed' },
+                    ].map((badge) => (
+                      <div key={badge.text} className="flex items-center gap-2 text-xs">
+                        <badge.icon className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                        <span className="text-slate-600">{badge.text}</span>
                       </div>
                     ))}
+                  </div>
                   </div>
                 </div>
 
@@ -918,9 +1179,10 @@ export default function HotelDetailPage() {
                       <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider block mb-2.5">Select Room</label>
                       <div className="grid grid-cols-2 gap-3">
                         <button
-                          onClick={() => setSelectedRoom('deluxe')}
+                          onClick={() => firstRoom && ((hasDateRange ? firstRoom.dateAvailableRooms ?? firstRoom.totalRooms : firstRoom.totalRooms) > 0) ? setSelectedRoom(firstRoom.id) : undefined}
+                          disabled={!firstRoom || ((hasDateRange ? firstRoom.dateAvailableRooms ?? firstRoom.totalRooms : firstRoom.totalRooms) <= 0)}
                           className={`p-4 rounded-xl border-2 text-left transition-all ${
-                            selectedRoom === 'deluxe'
+                            selectedRoom === firstRoom?.id
                               ? 'border-slate-900 bg-slate-50 ring-1 ring-slate-900/10'
                               : 'border-slate-200 hover:border-slate-300'
                           }`}
@@ -933,9 +1195,10 @@ export default function HotelDetailPage() {
                           <p className="text-base font-bold text-slate-900">₹{hotel.price.toLocaleString()}<span className="text-xs font-normal text-slate-400">/night</span></p>
                         </button>
                         <button
-                          onClick={() => setSelectedRoom('premium')}
+                          onClick={() => secondRoom && ((hasDateRange ? secondRoom.dateAvailableRooms ?? secondRoom.totalRooms : secondRoom.totalRooms) > 0) ? setSelectedRoom(secondRoom.id) : undefined}
+                          disabled={!secondRoom || ((hasDateRange ? secondRoom.dateAvailableRooms ?? secondRoom.totalRooms : secondRoom.totalRooms) <= 0)}
                           className={`p-4 rounded-xl border-2 text-left transition-all relative overflow-hidden ${
-                            selectedRoom === 'premium'
+                            selectedRoom === secondRoom?.id
                               ? 'border-slate-900 bg-slate-50 ring-1 ring-slate-900/10'
                               : 'border-slate-200 hover:border-slate-300'
                           }`}
@@ -1025,7 +1288,7 @@ export default function HotelDetailPage() {
                     {/* Price Summary */}
                     <div className="rounded-xl bg-slate-50 p-4 space-y-2">
                       <div className="flex justify-between text-sm">
-                        <span className="text-slate-500">{selectedRoom === 'premium' ? 'Premium Suite' : 'Deluxe Room'} × {nights} {nights === 1 ? 'night' : 'nights'}</span>
+                        <span className="text-slate-500">{selectedRoomData?.name ?? 'Room'} × {nights} {nights === 1 ? 'night' : 'nights'}</span>
                         <span className="font-semibold text-slate-900">₹{subtotal.toLocaleString()}</span>
                       </div>
                       {promoApplied && (
@@ -1045,15 +1308,15 @@ export default function HotelDetailPage() {
                     </div>
 
                     <button
-                      onClick={() => checkIn && checkOut ? setBookingStep(2) : undefined}
-                      disabled={!checkIn || !checkOut}
+                      onClick={() => checkIn && checkOut && selectedRoomIsAvailable ? setBookingStep(2) : undefined}
+                      disabled={!checkIn || !checkOut || !selectedRoomIsAvailable}
                       className={`w-full py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-all ${
-                        checkIn && checkOut
+                        checkIn && checkOut && selectedRoomIsAvailable
                           ? 'bg-gradient-to-r from-slate-900 to-slate-700 text-white hover:shadow-xl'
                           : 'bg-slate-200 text-slate-400 cursor-not-allowed'
                       }`}
                     >
-                      Continue to Guest Details
+                      {selectedRoomIsAvailable ? 'Continue to Guest Details' : 'Room not available for selected dates'}
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
                     </button>
                   </div>
@@ -1118,7 +1381,7 @@ export default function HotelDetailPage() {
                       <div className="space-y-2 text-sm">
                         <div className="flex justify-between">
                           <span className="text-slate-500">Room</span>
-                          <span className="font-medium text-slate-900">{selectedRoom === 'premium' ? 'Premium Suite' : 'Deluxe Room'}</span>
+                          <span className="font-medium text-slate-900">{selectedRoomData?.name ?? 'Room'}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-slate-500">Dates</span>
@@ -1135,6 +1398,12 @@ export default function HotelDetailPage() {
                       </div>
                     </div>
 
+                    {bookingError && (
+                      <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">
+                        {bookingError}
+                      </div>
+                    )}
+
                     <div className="flex gap-3">
                       <button
                         onClick={() => setBookingStep(1)}
@@ -1145,15 +1414,15 @@ export default function HotelDetailPage() {
                       </button>
                       <button
                         onClick={() => contactName && contactEmail && contactPhone ? handleConfirmBooking() : undefined}
-                        disabled={!contactName || !contactEmail || !contactPhone}
+                        disabled={!contactName || !contactEmail || !contactPhone || bookingLoading}
                         className={`flex-[2] py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-all ${
-                          contactName && contactEmail && contactPhone
+                          contactName && contactEmail && contactPhone && !bookingLoading
                             ? 'bg-gradient-to-r from-emerald-600 to-emerald-500 text-white hover:shadow-xl'
                             : 'bg-slate-200 text-slate-400 cursor-not-allowed'
                         }`}
                       >
                         <ShieldIcon className="w-4 h-4" />
-                        Confirm Booking
+                        {bookingLoading ? 'Checking availability...' : 'Confirm Booking'}
                       </button>
                     </div>
                   </div>
@@ -1180,7 +1449,7 @@ export default function HotelDetailPage() {
                       <div className="space-y-2 text-sm border-t border-slate-200 pt-3">
                         <div className="flex justify-between">
                           <span className="text-slate-500 flex items-center gap-1.5"><BedIcon className="w-3.5 h-3.5" /> Room</span>
-                          <span className="font-medium text-slate-900">{selectedRoom === 'premium' ? 'Premium Suite' : 'Deluxe Room'}</span>
+                          <span className="font-medium text-slate-900">{selectedRoomData?.name ?? 'Room'}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-slate-500 flex items-center gap-1.5"><CalendarIcon className="w-3.5 h-3.5" /> Check-in</span>

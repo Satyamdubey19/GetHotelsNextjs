@@ -1,8 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import Link from "next/link"
-import BackLink from "@/components/ui/BackLink"
+import { AlertTriangle, CheckCircle2, ChevronDown, Clock, FileText, ShieldCheck, Upload, User } from "lucide-react"
 import Spinner from "@/components/ui/Spinner"
 
 interface KYCData {
@@ -11,9 +10,19 @@ interface KYCData {
   firstName: string
   lastName: string
   idType: string
+  idNumber?: string
   rejectionReason?: string
   submittedAt: string
   reviewedAt?: string
+}
+
+function getStatusColor(status: string) {
+  switch (status) {
+    case "APPROVED": return { bg: "bg-emerald-50 border-emerald-200", text: "text-emerald-800", icon: <CheckCircle2 className="h-5 w-5 text-emerald-600" /> }
+    case "REJECTED": return { bg: "bg-red-50 border-red-200", text: "text-red-800", icon: <AlertTriangle className="h-5 w-5 text-red-600" /> }
+    case "PENDING": return { bg: "bg-amber-50 border-amber-200", text: "text-amber-800", icon: <Clock className="h-5 w-5 text-amber-600" /> }
+    default: return { bg: "bg-slate-50 border-slate-200", text: "text-slate-800", icon: <ShieldCheck className="h-5 w-5 text-slate-500" /> }
+  }
 }
 
 export default function KYCPage() {
@@ -89,220 +98,180 @@ export default function KYCPage() {
       })
 
       if (response.ok) {
-        alert("KYC submitted successfully!")
-        fetchKYC()
-      } else {
-        alert("Failed to submit KYC")
+        void fetchKYC()
       }
     } catch (error) {
       console.error("Error submitting KYC:", error)
-      alert("Error submitting KYC")
     } finally {
       setSubmitting(false)
     }
   }
 
-
-
   if (loading) return <Spinner minimal />
 
+  const statusStyle = kyc ? getStatusColor(kyc.status) : null
+  const isApproved = kyc?.status === "APPROVED"
+
+  const inputClass = "w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-950 focus:border-sky-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-100 transition"
+  const fileClass = "block w-full text-sm text-slate-500 file:mr-3 file:rounded-xl file:border-0 file:bg-slate-950 file:px-4 file:py-2 file:text-xs file:font-black file:text-white hover:file:bg-blue-700 file:transition"
+  const labelClass = "mb-2 block text-sm font-bold text-slate-700"
+  const sectionHeadingClass = "flex items-center gap-3 mb-6"
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-      <div className="max-w-4xl mx-auto">
-        <BackLink href="/host" label="Back to Dashboard" className="text-blue-600" />
+    <div className="mx-auto max-w-3xl space-y-6">
 
-        <h1 className="text-4xl font-bold text-slate-900 mb-2">KYC Verification</h1>
-        <p className="text-slate-600 mb-8">Complete your Know Your Customer verification to unlock all features</p>
+      {/* Status banner */}
+      {kyc && statusStyle && (
+        <div className={`flex items-start gap-4 rounded-[24px] border p-5 ${statusStyle.bg}`}>
+          <span className="mt-0.5 shrink-0">{statusStyle.icon}</span>
+          <div className="min-w-0 flex-1">
+            <p className={`text-sm font-black ${statusStyle.text}`}>
+              {kyc.status === "APPROVED" && "Verification approved — you can receive bookings and payouts."}
+              {kyc.status === "PENDING" && "Application under review — we will notify you once a decision is made."}
+              {kyc.status === "REJECTED" && `Application rejected${kyc.rejectionReason ? `: ${kyc.rejectionReason}` : ". Please resubmit with correct documents."}`}
+            </p>
+            <p className={`mt-1 text-xs ${statusStyle.text} opacity-70`}>Submitted {new Date(kyc.submittedAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}</p>
+          </div>
+        </div>
+      )}
 
-        {kyc && (
-          <div className={`rounded-lg p-6 mb-8 ${getStatusColor(kyc.status)}`}>
-            <div className="flex justify-between items-start mb-4">
-              <div>
-                <h2 className="text-xl font-bold mb-2">Application Status</h2>
-                <p className="text-sm mb-2">
-                  <strong>Status:</strong> {kyc.status}
-                </p>
-                <p className="text-sm">
-                  <strong>Submitted:</strong> {new Date(kyc.submittedAt).toLocaleDateString()}
-                </p>
+      {/* Form */}
+      <form onSubmit={handleSubmit} className="space-y-6">
+
+        {/* Personal info */}
+        <div className="rounded-[28px] border border-slate-200/70 bg-white/85 p-6 shadow-sm backdrop-blur">
+          <div className={sectionHeadingClass}>
+            <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
+              <User className="h-5 w-5" />
+            </span>
+            <div>
+              <p className="text-xs font-black uppercase tracking-widest text-blue-600">Step 1</p>
+              <h2 className="text-lg font-black text-slate-950">Personal information</h2>
+            </div>
+          </div>
+          <div className="grid gap-5 sm:grid-cols-2">
+            <div>
+              <label className={labelClass}>First name <span className="text-red-400">*</span></label>
+              <input type="text" name="firstName" value={formData.firstName} onChange={handleChange} required className={inputClass} placeholder="John" />
+            </div>
+            <div>
+              <label className={labelClass}>Last name <span className="text-red-400">*</span></label>
+              <input type="text" name="lastName" value={formData.lastName} onChange={handleChange} required className={inputClass} placeholder="Doe" />
+            </div>
+            <div>
+              <label className={labelClass}>Date of birth <span className="text-red-400">*</span></label>
+              <input type="date" name="dateOfBirth" value={formData.dateOfBirth} onChange={handleChange} required className={inputClass} />
+            </div>
+            <div>
+              <label className={labelClass}>Nationality <span className="text-red-400">*</span></label>
+              <input type="text" name="nationality" value={formData.nationality} onChange={handleChange} required className={inputClass} placeholder="Indian" />
+            </div>
+          </div>
+        </div>
+
+        {/* Identity verification */}
+        <div className="rounded-[28px] border border-slate-200/70 bg-white/85 p-6 shadow-sm backdrop-blur">
+          <div className={sectionHeadingClass}>
+            <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
+              <ShieldCheck className="h-5 w-5" />
+            </span>
+            <div>
+              <p className="text-xs font-black uppercase tracking-widest text-emerald-600">Step 2</p>
+              <h2 className="text-lg font-black text-slate-950">Identity verification</h2>
+            </div>
+          </div>
+          <div className="grid gap-5 sm:grid-cols-2">
+            <div>
+              <label className={labelClass}>ID type <span className="text-red-400">*</span></label>
+              <div className="relative">
+                <select name="idType" value={formData.idType} onChange={handleChange} className={inputClass + " appearance-none pr-9"}>
+                  <option value="passport">Passport</option>
+                  <option value="driver_license">Driver License</option>
+                  <option value="national_id">National ID</option>
+                  <option value="visa">Visa</option>
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               </div>
             </div>
-
-            {kyc.status === "REJECTED" && kyc.rejectionReason && (
-              <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded">
-                <p className="font-semibold mb-2">Rejection Reason:</p>
-                <p>{kyc.rejectionReason}</p>
+            <div>
+              <label className={labelClass}>ID number <span className="text-red-400">*</span></label>
+              <input type="text" name="idNumber" value={formData.idNumber} onChange={handleChange} required className={inputClass} placeholder="A1234567" />
+            </div>
+          </div>
+          <div className="mt-5 grid gap-5 sm:grid-cols-2">
+            <div>
+              <label className={labelClass}>ID front image <span className="text-red-400">*</span></label>
+              <div className="rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 p-4 transition hover:border-sky-300 hover:bg-sky-50/50">
+                <input type="file" name="idFrontImage" accept="image/*" onChange={handleFileChange} className={fileClass} />
+                {!formData.idFrontImage && <p className="mt-2 text-xs text-slate-400">JPG, PNG up to 5MB</p>}
+                {formData.idFrontImage && <p className="mt-2 text-xs font-bold text-emerald-600">✓ Image selected</p>}
               </div>
-            )}
-
-            {kyc.status === "APPROVED" && (
-              <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded">
-                <p className="font-semibold">✓ Your KYC is verified! You can now receive bookings and payouts.</p>
+            </div>
+            <div>
+              <label className={labelClass}>ID back image <span className="text-red-400">*</span></label>
+              <div className="rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 p-4 transition hover:border-sky-300 hover:bg-sky-50/50">
+                <input type="file" name="idBackImage" accept="image/*" onChange={handleFileChange} className={fileClass} />
+                {!formData.idBackImage && <p className="mt-2 text-xs text-slate-400">JPG, PNG up to 5MB</p>}
+                {formData.idBackImage && <p className="mt-2 text-xs font-bold text-emerald-600">✓ Image selected</p>}
               </div>
-            )}
+            </div>
+          </div>
+          <div className="mt-5">
+            <label className={labelClass}>Address proof</label>
+            <div className="rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 p-4 transition hover:border-sky-300 hover:bg-sky-50/50">
+              <input type="file" name="addressProof" accept="image/*,application/pdf" onChange={handleFileChange} className={fileClass} />
+              {!formData.addressProof && <p className="mt-2 text-xs text-slate-400">Utility bill, bank statement, etc.</p>}
+              {formData.addressProof && <p className="mt-2 text-xs font-bold text-emerald-600">✓ Document selected</p>}
+            </div>
+          </div>
+        </div>
 
-            {kyc.status === "PENDING" && (
-              <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded">
-                <p className="font-semibold">Your KYC is under review. Please wait for admin approval.</p>
+        {/* Business documents */}
+        <div className="rounded-[28px] border border-slate-200/70 bg-white/85 p-6 shadow-sm backdrop-blur">
+          <div className={sectionHeadingClass}>
+            <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-violet-50 text-violet-600">
+              <FileText className="h-5 w-5" />
+            </span>
+            <div>
+              <p className="text-xs font-black uppercase tracking-widest text-violet-600">Step 3</p>
+              <h2 className="text-lg font-black text-slate-950">Business documents</h2>
+            </div>
+          </div>
+          <div className="grid gap-5 sm:grid-cols-2">
+            <div>
+              <label className={labelClass}>Business license</label>
+              <div className="rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 p-4 transition hover:border-sky-300 hover:bg-sky-50/50">
+                <input type="file" name="businessLicense" accept="image/*,application/pdf" onChange={handleFileChange} className={fileClass} />
+                {!formData.businessLicense && <p className="mt-2 text-xs text-slate-400">PDF or image</p>}
+                {formData.businessLicense && <p className="mt-2 text-xs font-bold text-emerald-600">✓ Document selected</p>}
               </div>
-            )}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-md p-8">
-          <h2 className="text-2xl font-bold text-slate-900 mb-6">Personal Information</h2>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">First Name *</label>
-              <input
-                type="text"
-                name="firstName"
-                value={formData.firstName}
-                onChange={handleChange}
-                required
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
             </div>
-
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">Last Name *</label>
-              <input
-                type="text"
-                name="lastName"
-                value={formData.lastName}
-                onChange={handleChange}
-                required
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">Date of Birth *</label>
-              <input
-                type="date"
-                name="dateOfBirth"
-                value={formData.dateOfBirth}
-                onChange={handleChange}
-                required
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">Nationality *</label>
-              <input
-                type="text"
-                name="nationality"
-                value={formData.nationality}
-                onChange={handleChange}
-                required
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
+              <label className={labelClass}>Tax certificate</label>
+              <div className="rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 p-4 transition hover:border-sky-300 hover:bg-sky-50/50">
+                <input type="file" name="taxCertificate" accept="image/*,application/pdf" onChange={handleFileChange} className={fileClass} />
+                {!formData.taxCertificate && <p className="mt-2 text-xs text-slate-400">PDF or image</p>}
+                {formData.taxCertificate && <p className="mt-2 text-xs font-bold text-emerald-600">✓ Document selected</p>}
+              </div>
             </div>
           </div>
+        </div>
 
-          <h2 className="text-2xl font-bold text-slate-900 mb-6 mt-8">Identity Verification</h2>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">ID Type *</label>
-              <select
-                name="idType"
-                value={formData.idType}
-                onChange={handleChange}
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="passport">Passport</option>
-                <option value="driver_license">Driver License</option>
-                <option value="national_id">National ID</option>
-                <option value="visa">Visa</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">ID Number *</label>
-              <input
-                type="text"
-                name="idNumber"
-                value={formData.idNumber}
-                onChange={handleChange}
-                required
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">ID Front Image *</label>
-              <input
-                type="file"
-                name="idFrontImage"
-                accept="image/*"
-                onChange={handleFileChange}
-                className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">ID Back Image *</label>
-              <input
-                type="file"
-                name="idBackImage"
-                accept="image/*"
-                onChange={handleFileChange}
-                className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-2">Address Proof</label>
-            <input
-              type="file"
-              name="addressProof"
-              accept="image/*,application/pdf"
-              onChange={handleFileChange}
-              className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700"
-            />
-          </div>
-
-          <h2 className="text-2xl font-bold text-slate-900 mb-6 mt-8">Business Documents</h2>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">Business License</label>
-              <input
-                type="file"
-                name="businessLicense"
-                accept="image/*,application/pdf"
-                onChange={handleFileChange}
-                className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">Tax Certificate</label>
-              <input
-                type="file"
-                name="taxCertificate"
-                accept="image/*,application/pdf"
-                onChange={handleFileChange}
-                className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700"
-              />
-            </div>
-          </div>
-
-          <button
-            type="submit"
-            disabled={submitting || (kyc?.status === "APPROVED")}
-            className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-slate-400 text-white px-6 py-3 rounded-lg font-semibold transition"
-          >
-            {submitting ? "Submitting..." : kyc?.status === "APPROVED" ? "KYC Verified ✓" : "Submit KYC"}
-          </button>
-        </form>
-      </div>
+        {/* Submit */}
+        <button
+          type="submit"
+          disabled={submitting || isApproved}
+          className="flex w-full items-center justify-center gap-3 rounded-2xl bg-slate-950 px-6 py-4 text-sm font-black text-white shadow-lg shadow-slate-950/15 transition hover:-translate-y-0.5 hover:bg-blue-700 disabled:pointer-events-none disabled:opacity-50"
+        >
+          {isApproved ? (
+            <><CheckCircle2 className="h-5 w-5" /> KYC Verified</>
+          ) : submitting ? (
+            <><Upload className="h-5 w-5 animate-spin" /> Submitting…</>
+          ) : (
+            <><Upload className="h-5 w-5" /> Submit KYC application</>
+          )}
+        </button>
+      </form>
     </div>
   )
 }

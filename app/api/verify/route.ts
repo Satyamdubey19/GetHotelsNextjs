@@ -1,9 +1,9 @@
 import { prisma } from "@/lib/prisma";
 
 type VerifiableUser = {
-  id: number;
+  id: string;
   verificationToken: string | null;
-  isVerified: boolean;
+  isEmailVerified: boolean;
 };
 
 export async function GET(req: Request) {
@@ -25,7 +25,7 @@ export async function GET(req: Request) {
   await prisma.user.update({
     where: { id: user.id },
     data: {
-      isVerified: true,
+      isEmailVerified: true,
       verificationToken: null,
     },
   });

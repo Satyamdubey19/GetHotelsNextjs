@@ -3,14 +3,11 @@
 import { useMemo, useState } from "react"
 import type { FormEvent } from "react"
 import type { HotelReview } from "@/lib/hotels"
-
-type Props = {
-  initialReviews: HotelReview[]
-}
+import type { HotelReviewsProps } from "@/types/hotel-components"
 
 const ratingLabels = ["Terrible", "Poor", "Okay", "Great", "Excellent"]
 
-const HotelReviews = ({ initialReviews }: Props) => {
+const HotelReviews = ({ initialReviews }: HotelReviewsProps) => {
   const [reviews, setReviews] = useState<HotelReview[]>(initialReviews)
   const [name, setName] = useState("")
   const [rating, setRating] = useState(5)

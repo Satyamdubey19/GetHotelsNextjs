@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import SignupForm from '@/components/auth/SignupForm';
 
@@ -28,9 +29,20 @@ const benefits = [
 ];
 
 export default function SignupPage() {
+  return (
+    <Suspense fallback={<SignupShell initialAccountType="USER" />}>
+      <SignupContent />
+    </Suspense>
+  );
+}
+
+function SignupContent() {
   const searchParams = useSearchParams();
   const initialAccountType = searchParams.get('type') === 'host' ? 'HOST' : 'USER';
+  return <SignupShell initialAccountType={initialAccountType} />;
+}
 
+function SignupShell({ initialAccountType }: { initialAccountType: 'USER' | 'HOST' }) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-sky-50 flex items-center justify-center px-4 py-12">
       <div className="absolute top-0 left-0 w-96 h-96 bg-blue-200 rounded-full mix-blend-multiply filter blur-3xl opacity-20 -z-10 animate-pulse"></div>

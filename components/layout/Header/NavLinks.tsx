@@ -1,10 +1,11 @@
+import Link from "next/link"
+
 const NavLinks = () => {
   return (
     <nav className="flex gap-6">
-      <a href="/hotels">Stays</a>
-      <a href="/tours">Tours</a>
-      <a href="#">Car Rental</a>
-      <a href="#">Activities</a>
+      <Link href="/tours">Tours</Link>
+      <Link href="/car-rental">Car Rental</Link>
+      <Link href="/activities">Activities</Link>
     </nav>
   )
 }

@@ -1,167 +1,95 @@
-"use client"
+import { ArrowUpRight, BarChart3, CalendarDays, IndianRupee, Star, Users } from "lucide-react"
+import { HostPage, HostPill, HostSection, HostStatCard } from "@/components/host/HostUI"
 
-import Link from "next/link"
-import BackLink from "@/components/ui/BackLink"
+const metrics = [
+  { title: "Total revenue", value: "Rs 12.5L", change: "+12%", icon: IndianRupee, tone: "cyan" as const },
+  { title: "Occupancy", value: "75%", change: "+5%", icon: BarChart3, tone: "emerald" as const },
+  { title: "Guests hosted", value: "245", change: "+22%", icon: Users, tone: "amber" as const },
+  { title: "Average rating", value: "4.8", change: "+0.3", icon: Star, tone: "violet" as const },
+]
+
+const revenueBars = [42, 58, 54, 72, 66, 84, 78, 92]
+const bookingBars = [36, 48, 44, 68, 62, 74, 88, 82]
+
+const properties = [
+  { name: "Grand Hotel", bookings: 45, revenue: "Rs 8.5L", occupancy: "85%", rating: "4.9" },
+  { name: "Beach Resort", bookings: 32, revenue: "Rs 6.4L", occupancy: "72%", rating: "4.7" },
+  { name: "Mountain Adventure", bookings: 18, revenue: "Rs 3.6L", occupancy: "65%", rating: "4.6" },
+]
 
 export default function AnalyticsPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-blue-100 p-4">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <BackLink href="/host" label="Back to Dashboard" className="text-indigo-600" />
-          <h1 className="text-4xl font-bold text-slate-900">Analytics & Reports</h1>
-          <p className="text-slate-600 mt-2">Track your performance and insights</p>
-        </div>
-
-        {/* Analytics Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <AnalyticsCard
-            title="Total Revenue"
-            value="$12,500"
-            change="+12%"
-            icon="💰"
+    <HostPage
+      eyebrow="Reports"
+      title="Analytics"
+      description="A clear look at revenue, booking pace, occupancy, and property-level performance."
+      actions={<HostPill tone="emerald"><CalendarDays className="h-3.5 w-3.5" /> Last 30 days</HostPill>}
+    >
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {metrics.map(({ title, value, change, icon: Icon, tone }) => (
+          <HostStatCard
+            key={title}
+            label={title}
+            value={value}
+            hint={change}
+            tone={tone}
+            icon={<Icon className="h-5 w-5" />}
           />
-          <AnalyticsCard
-            title="Occupancy Rate"
-            value="75%"
-            change="+5%"
-            icon="📊"
-          />
-          <AnalyticsCard
-            title="Total Guests"
-            value="245"
-            change="+22%"
-            icon="👥"
-          />
-          <AnalyticsCard
-            title="Avg Rating"
-            value="4.8 ⭐"
-            change="+0.3"
-            icon="⭐"
-          />
-        </div>
+        ))}
+      </section>
 
-        {/* Charts Section */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-          {/* Revenue Chart */}
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h2 className="text-xl font-bold text-slate-900 mb-6">Monthly Revenue</h2>
-            <div className="h-64 bg-gradient-to-b from-indigo-100 to-indigo-50 rounded-lg flex items-center justify-center">
-              <div className="text-center">
-                <p className="text-slate-600 mb-2">📈 Revenue Trend</p>
-                <p className="text-sm text-slate-500">Chart visualization would go here</p>
-              </div>
-            </div>
-          </div>
+      <section className="grid gap-5 lg:grid-cols-2">
+        <ChartCard title="Monthly revenue" subtitle="Earnings trend across active listings" bars={revenueBars} tone="bg-cyan-600" />
+        <ChartCard title="Booking velocity" subtitle="Reservations accepted by month" bars={bookingBars} tone="bg-emerald-600" />
+      </section>
 
-          {/* Booking Trends */}
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h2 className="text-xl font-bold text-slate-900 mb-6">Booking Trends</h2>
-            <div className="h-64 bg-gradient-to-b from-blue-100 to-blue-50 rounded-lg flex items-center justify-center">
-              <div className="text-center">
-                <p className="text-slate-600 mb-2">📅 Bookings by Month</p>
-                <p className="text-sm text-slate-500">Chart visualization would go here</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Properties Performance */}
-        <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-          <h2 className="text-2xl font-bold text-slate-900 mb-6">Property Performance</h2>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-slate-100 border-b border-slate-200">
-                <tr>
-                  <th className="px-6 py-4 text-left font-semibold text-slate-900">Property</th>
-                  <th className="px-6 py-4 text-left font-semibold text-slate-900">Bookings</th>
-                  <th className="px-6 py-4 text-left font-semibold text-slate-900">Revenue</th>
-                  <th className="px-6 py-4 text-left font-semibold text-slate-900">Occupancy</th>
-                  <th className="px-6 py-4 text-left font-semibold text-slate-900">Rating</th>
+      <HostSection title="Property scoreboard" eyebrow="Portfolio performance">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[720px] text-sm">
+            <thead className="bg-slate-50 text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
+              <tr>
+                <th className="px-5 py-3 text-left">Property</th>
+                <th className="px-5 py-3 text-left">Bookings</th>
+                <th className="px-5 py-3 text-left">Revenue</th>
+                <th className="px-5 py-3 text-left">Occupancy</th>
+                <th className="px-5 py-3 text-left">Rating</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {properties.map(property => (
+                <tr key={property.name} className="transition hover:bg-slate-50">
+                  <td className="px-5 py-4 font-bold text-slate-950">{property.name}</td>
+                  <td className="px-5 py-4 font-semibold text-slate-700">{property.bookings}</td>
+                  <td className="px-5 py-4 font-bold text-slate-950">{property.revenue}</td>
+                  <td className="px-5 py-4 font-semibold text-slate-700">{property.occupancy}</td>
+                  <td className="px-5 py-4 font-bold text-amber-600">{property.rating}</td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200">
-                <tr className="hover:bg-slate-50">
-                  <td className="px-6 py-4 font-semibold text-slate-900">Grand Hotel</td>
-                  <td className="px-6 py-4">45</td>
-                  <td className="px-6 py-4 font-semibold">$8,500</td>
-                  <td className="px-6 py-4">85%</td>
-                  <td className="px-6 py-4">4.9 ⭐</td>
-                </tr>
-                <tr className="hover:bg-slate-50">
-                  <td className="px-6 py-4 font-semibold text-slate-900">Beach Resort</td>
-                  <td className="px-6 py-4">32</td>
-                  <td className="px-6 py-4 font-semibold">$6,400</td>
-                  <td className="px-6 py-4">72%</td>
-                  <td className="px-6 py-4">4.7 ⭐</td>
-                </tr>
-                <tr className="hover:bg-slate-50">
-                  <td className="px-6 py-4 font-semibold text-slate-900">Mountain Adventure</td>
-                  <td className="px-6 py-4">18</td>
-                  <td className="px-6 py-4 font-semibold">$3,600</td>
-                  <td className="px-6 py-4">65%</td>
-                  <td className="px-6 py-4">4.6 ⭐</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+              ))}
+            </tbody>
+          </table>
         </div>
-
-        {/* Quick Insights */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <InsightCard
-            title="🎯 Top Performer"
-            description="Grand Hotel is your best performing property with 85% occupancy"
-          />
-          <InsightCard
-            title="📈 Growth Opportunity"
-            description="Consider promotional pricing for Mountain Adventure tour"
-          />
-          <InsightCard
-            title="⭐ Guest Satisfaction"
-            description="Your avg rating of 4.8 is excellent! Keep up the good work"
-          />
-        </div>
-      </div>
-    </div>
+      </HostSection>
+    </HostPage>
   )
 }
 
-function AnalyticsCard({
-  title,
-  value,
-  change,
-  icon,
-}: {
-  title: string
-  value: string
-  change: string
-  icon: string
-}) {
+function ChartCard({ title, subtitle, bars, tone }: { title: string; subtitle: string; bars: number[]; tone: string }) {
   return (
-    <div className="bg-white rounded-lg shadow-md p-6">
-      <div className="flex items-center justify-between mb-4">
-        <p className="text-slate-600 text-sm font-semibold">{title}</p>
-        <span className="text-3xl">{icon}</span>
+    <HostSection
+      title={title}
+      description={subtitle}
+      actions={<HostPill><ArrowUpRight className="h-3.5 w-3.5" /> Live</HostPill>}
+    >
+      <div className="flex h-64 items-end gap-3 p-5">
+        {bars.map((height, index) => (
+          <span key={`${title}-${index}`} className="flex flex-1 items-end rounded-lg bg-slate-50 p-1.5">
+            <span
+              className={`w-full rounded-md ${tone} shadow-sm transition hover:opacity-80`}
+              style={{ height: `${height}%` }}
+            />
+          </span>
+        ))}
       </div>
-      <p className="text-3xl font-bold text-slate-900 mb-2">{value}</p>
-      <p className="text-green-600 text-sm font-semibold">{change} from last month</p>
-    </div>
-  )
-}
-
-function InsightCard({
-  title,
-  description,
-}: {
-  title: string
-  description: string
-}) {
-  return (
-    <div className="bg-white rounded-lg shadow-md p-6">
-      <h3 className="font-bold text-slate-900 mb-2">{title}</h3>
-      <p className="text-slate-600 text-sm">{description}</p>
-    </div>
+    </HostSection>
   )
 }

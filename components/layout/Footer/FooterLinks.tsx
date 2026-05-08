@@ -1,6 +1,4 @@
-type FooterLinksProps = {
-  links: { label: string; href: string }[]
-}
+import type { FooterLinksProps } from "@/types/layout"
 
 export default function FooterLinks({ links }: FooterLinksProps) {
   return (

@@ -9,11 +9,16 @@ import {
   Bell,
   Building2,
   CalendarCheck2,
+  Car,
   ChevronLeft,
   ChevronRight,
   CreditCard,
+  FileText,
+  Hotel,
   LayoutDashboard,
+  ListChecks,
   LogOut,
+  Map,
   Search,
   ShieldCheck,
   Users,
@@ -48,6 +53,36 @@ const navItems: NavItem[] = [
     label: 'Bookings',
     description: 'Reservations and disputes',
     icon: CalendarCheck2,
+  },
+  {
+    href: '/admin/listings',
+    label: 'All Listings',
+    description: 'Hotels, tours, rentals, activities',
+    icon: ListChecks,
+  },
+  {
+    href: '/admin/hotels',
+    label: 'Hotels',
+    description: 'Hotel approvals and inventory',
+    icon: Hotel,
+  },
+  {
+    href: '/admin/tours',
+    label: 'Tours',
+    description: 'Tour packages and slots',
+    icon: Map,
+  },
+  {
+    href: '/admin/rentals',
+    label: 'Rentals',
+    description: 'Vehicles and rental supply',
+    icon: Car,
+  },
+  {
+    href: '/admin/posts',
+    label: 'Posts',
+    description: 'User content and engagement',
+    icon: FileText,
   },
   {
     href: '/admin/payouts',
@@ -241,7 +276,7 @@ export default function AdminLayout({
                 <input
                   value={searchQuery}
                   onChange={(event) => setSearchQuery(event.target.value)}
-                  placeholder="Search dashboard, KYC, payouts, hosts, or users"
+                  placeholder="Search users, hosts, listings, hotels, tours, rentals, posts"
                   className="w-full rounded-[24px] border border-slate-200 bg-white px-11 py-3.5 text-sm text-slate-900 shadow-sm outline-none transition focus:border-sky-400"
                 />
                 {searchResults.length > 0 ? (
@@ -277,8 +312,9 @@ export default function AdminLayout({
 
               <div className="flex flex-wrap items-center gap-2">
                 <TopShortcut href="/admin/kyc" label="Review KYC" />
+                <TopShortcut href="/admin/listings" label="Review listings" />
+                <TopShortcut href="/admin/posts" label="View posts" />
                 <TopShortcut href="/admin/payouts" label="Process payouts" />
-                <TopShortcut href="/admin/hosts" label="Monitor hosts" />
               </div>
             </div>
           </div>

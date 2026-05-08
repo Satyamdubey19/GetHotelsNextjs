@@ -1,9 +1,4 @@
-interface SectionCardProps {
-  title: string
-  description?: string
-  children: React.ReactNode
-  className?: string
-}
+import type { SectionCardProps } from "@/types/ui"
 
 export default function SectionCard({ title, description, children, className }: SectionCardProps) {
   return (

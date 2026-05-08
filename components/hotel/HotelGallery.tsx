@@ -1,13 +1,9 @@
 "use client"
 
 import { useState } from "react"
+import type { HotelGalleryProps } from "@/types/hotel-components"
 
-type Props = {
-  gallery: string[]
-  title: string
-}
-
-const HotelGallery = ({ gallery, title }: Props) => {
+const HotelGallery = ({ gallery, title }: HotelGalleryProps) => {
   const [activeIndex, setActiveIndex] = useState(0)
   const [isOpen, setIsOpen] = useState(false)
 

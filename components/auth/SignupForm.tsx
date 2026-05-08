@@ -9,20 +9,18 @@ import Checkbox from '@/components/ui/Checkbox';
 import FormLabel from '@/components/ui/FormLabel';
 import SocialAuthButton from '@/components/ui/SocialAuthButton';
 import Alert from '@/components/ui/Alert';
-import { useAuth } from '@/contexts/AuthContext';
 import { signIn } from 'next-auth/react';
 
 interface SignupFormProps {
-  initialAccountType?: 'USER' | 'HOST' | 'ADMIN';
+  initialAccountType?: 'USER' | 'HOST';
 }
 
 export default function SignupForm({ initialAccountType = 'USER' }: SignupFormProps) {
   const router = useRouter();
-  const { signup } = useAuth();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
-  const [accountType, setAccountType] = useState<'USER' | 'HOST' | 'ADMIN'>(initialAccountType);
+  const [accountType, setAccountType] = useState<'USER' | 'HOST'>(initialAccountType);
   const [businessName, setBusinessName] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -68,16 +66,36 @@ export default function SignupForm({ initialAccountType = 'USER' }: SignupFormPr
 
     setLoading(true);
     try {
-      await signup({
-        name,
-        email,
-        phone,
-        password,
-        accountType,
-        businessName: accountType === 'HOST' ? businessName : undefined,
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name,
+          email,
+          phone,
+          password,
+          role: accountType === 'HOST' ? 'host' : 'user',
+          businessName: accountType === 'HOST' ? businessName : undefined,
+        }),
       });
-
-      router.push(accountType === 'HOST' ? '/host' : accountType === 'ADMIN' ? '/admin' : '/');
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error ?? 'Failed to create account. Please try again.');
+      }
+      const res = await signIn('credentials', {
+        redirect: false,
+        email,
+        password,
+        type: accountType,
+      });
+      if (res?.error) {
+        setError(res.error);
+        setLoading(false);
+        return;
+      }
+      const nextUrl = accountType === 'HOST' ? '/host' : '/';
+      router.refresh();
+      window.location.assign(nextUrl);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create account. Please try again.');
       console.error(err);
@@ -88,7 +106,7 @@ export default function SignupForm({ initialAccountType = 'USER' }: SignupFormPr
 
 const handleSocialSignup = () => {
   signIn("google", {
-    callbackUrl: "/api/auth/google-login",
+    callbackUrl: "/",
   });
 };
 
@@ -99,41 +117,42 @@ const handleSocialSignup = () => {
       )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="grid grid-cols-3 gap-2 rounded-2xl bg-slate-100 p-1">
+        {/* Account type toggle */}
+        <div className="flex rounded-xl border border-slate-200 bg-slate-50 p-1 gap-1 mb-2">
           <button
             type="button"
             onClick={() => setAccountType('USER')}
-            className={`rounded-2xl px-4 py-3 text-sm font-semibold transition ${
+            className={`flex-1 flex items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-semibold transition-all duration-200 ${
               accountType === 'USER'
-                ? 'bg-white text-slate-900 shadow-sm'
-                : 'text-slate-500 hover:text-slate-800'
+                ? 'bg-white text-blue-700 shadow-sm border border-blue-100'
+                : 'text-slate-500 hover:text-slate-700'
             }`}
           >
-            Traveler Account
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            </svg>
+            I'm a Traveler
           </button>
           <button
             type="button"
             onClick={() => setAccountType('HOST')}
-            className={`rounded-2xl px-4 py-3 text-sm font-semibold transition ${
+            className={`flex-1 flex items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-semibold transition-all duration-200 ${
               accountType === 'HOST'
-                ? 'bg-white text-slate-900 shadow-sm'
-                : 'text-slate-500 hover:text-slate-800'
+                ? 'bg-white text-blue-700 shadow-sm border border-blue-100'
+                : 'text-slate-500 hover:text-slate-700'
             }`}
           >
-            Host Account
-          </button>
-          <button
-            type="button"
-            onClick={() => setAccountType('ADMIN')}
-            className={`rounded-2xl px-4 py-3 text-sm font-semibold transition ${
-              accountType === 'ADMIN'
-                ? 'bg-white text-slate-900 shadow-sm'
-                : 'text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            Admin Account
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+            </svg>
+            I'm a Host
           </button>
         </div>
+        {accountType === 'HOST' && (
+          <p className="text-xs text-blue-600 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2">
+            List your hotel, tour, or rental and start accepting bookings.
+          </p>
+        )}
 
         {/* Name Field */}
         <div>
@@ -285,7 +304,7 @@ const handleSocialSignup = () => {
           disabled={loading}
           className="w-full py-3 text-base font-semibold disabled:opacity-60 mt-6"
         >
-          {loading ? 'Creating Account...' : accountType === 'HOST' ? 'Create Host Account' : accountType === 'ADMIN' ? 'Create Admin Account' : 'Sign Up'}
+          {loading ? 'Creating Account...' : accountType === 'HOST' ? 'Create Host Account' : 'Sign Up'}
         </Button>
       </form>
 

@@ -1,124 +1,111 @@
-﻿"use client"
+"use client"
 
 import { useState } from "react"
+import { usePathname, useRouter } from "next/navigation"
+import { CalendarDays, MapPin, Search, Users } from "lucide-react"
 import LocationInput from "./LocationInput"
 import DatePicker from "./DatePicker"
+import type { SearchBarProps } from "@/types/search"
 
-type SearchBarProps = {
-  onSearch?: (query: string) => void
-  compact?: boolean
-}
-
-const SearchBar = ({ onSearch, compact }: SearchBarProps) => {
+const SearchBar = ({ onSearch }: SearchBarProps) => {
+  const pathname = usePathname()
+  const router = useRouter()
   const [destination, setDestination] = useState("")
-
-  const handleDestinationChange = (value: string) => {
-    setDestination(value)
-    onSearch?.(value)
-  }
+  const [checkIn, setCheckIn] = useState("")
+  const [checkOut, setCheckOut] = useState("")
+  const [guests, setGuests] = useState(2)
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    onSearch?.(destination)
+    const query = destination.trim()
+    onSearch?.(query)
+
+    const params = new URLSearchParams()
+    if (query) params.set("q", query)
+    if (checkIn) params.set("checkIn", checkIn)
+    if (checkOut) params.set("checkOut", checkOut)
+    if (query || checkIn || checkOut) params.set("guests", String(guests))
+
+    const target = params.toString() ? `/hotels?${params.toString()}` : "/hotels"
+    if (pathname !== target) router.push(target)
   }
 
-  const [checkIn, setCheckIn] = useState("")
-  const [checkOut, setCheckOut] = useState("")
-  const [guestCount, setGuestCount] = useState(2)
-
-  const adjustGuests = (delta: number) => {
-    setGuestCount((current) => Math.max(1, current + delta))
-  }
+  const inputClass =
+    "w-full border-0 bg-transparent p-0 text-sm font-bold text-slate-900 outline-none placeholder:font-normal placeholder:text-slate-400 focus:ring-0"
 
   return (
-    <div className="container mx-auto px-4">
-      <div className={`mx-auto border border-blue-950/10 bg-white shadow-[0_18px_50px_-26px_rgba(30,64,175,0.25)] transition duration-300 hover:shadow-[0_20px_70px_-28px_rgba(30,64,175,0.2)] ${
-        compact ? 'max-w-5xl rounded-xl p-3' : 'max-w-6xl rounded-[2rem] p-4'
-      }`}>
-        <form onSubmit={handleSubmit} className={`grid items-stretch ${
-          compact ? 'gap-2 lg:grid-cols-[1.6fr_1fr_1fr_0.8fr_auto]' : 'gap-3 lg:grid-cols-[1.6fr_1fr_1fr_1fr_auto]'
-        }`}>
-          <div className={`border border-blue-100 bg-white transition duration-300 hover:border-blue-500 focus-within:border-blue-600 focus-within:shadow-[0_0_0_4px_rgba(59,130,246,0.08)] ${
-            compact ? 'rounded-lg px-3 py-2' : 'rounded-[1.5rem] px-3 py-3'
-          }`}>
-            <label className={`block uppercase tracking-[0.24em] text-blue-600 ${compact ? 'mb-1 text-[9px]' : 'mb-2 text-[10px]'}`}>Destination</label>
+    <div className="mx-auto w-full max-w-5xl px-4 sm:px-6 lg:px-8">
+      <form
+        onSubmit={handleSubmit}
+        className="flex items-stretch overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_4px_40px_-4px_rgba(15,23,42,0.18),0_0_0_1px_rgba(15,23,42,0.04)]"
+      >
+        {/* Destination */}
+        <div className="flex min-w-0 flex-1 items-center gap-3 border-r border-slate-100 px-5 py-4">
+          <MapPin className="size-4 shrink-0 text-cyan-500" />
+          <div className="min-w-0 flex-1">
+            <p className="text-[9px] font-bold uppercase tracking-[0.15em] text-slate-400">Destination</p>
             <LocationInput
               value={destination}
-              onChange={handleDestinationChange}
-              placeholder="Where are you going?"
-              className={`w-full border border-blue-100 bg-white text-sm text-blue-950 outline-none transition duration-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 ${
-                compact ? 'h-9 rounded-lg px-3' : 'h-11 rounded-[1rem] px-4'
-              }`}
+              onChange={(v) => { setDestination(v); onSearch?.(v) }}
+              placeholder="City, hotel, or destination..."
+              className={inputClass}
             />
           </div>
+        </div>
 
-          <div className={`border border-blue-100 bg-white transition duration-300 hover:border-blue-500 focus-within:border-blue-600 focus-within:shadow-[0_0_0_4px_rgba(59,130,246,0.08)] ${
-            compact ? 'rounded-lg px-3 py-2' : 'rounded-[1.5rem] px-3 py-3'
-          }`}>
-            <label className={`block uppercase tracking-[0.24em] text-blue-600 ${compact ? 'mb-1 text-[9px]' : 'mb-2 text-[10px]'}`}>Check-in</label>
-            <DatePicker
-              value={checkIn}
-              onChange={setCheckIn}
-              className={`w-full border border-blue-100 bg-white text-sm text-blue-950 outline-none transition duration-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 ${
-                compact ? 'h-9 rounded-lg px-3' : 'h-11 rounded-[1rem] px-4'
-              }`}
-            />
+        {/* Check-in */}
+        <div className="flex items-center gap-2.5 border-r border-slate-100 px-4 py-4">
+          <CalendarDays className="size-4 shrink-0 text-slate-300" />
+          <div className="w-[110px]">
+            <p className="text-[9px] font-bold uppercase tracking-[0.15em] text-slate-400">Check-in</p>
+            <DatePicker value={checkIn} onChange={setCheckIn} className={inputClass} />
           </div>
+        </div>
 
-          <div className={`border border-blue-100 bg-white transition duration-300 hover:border-blue-500 focus-within:border-blue-600 focus-within:shadow-[0_0_0_4px_rgba(59,130,246,0.08)] ${
-            compact ? 'rounded-lg px-3 py-2' : 'rounded-[1.5rem] px-3 py-3'
-          }`}>
-            <label className={`block uppercase tracking-[0.24em] text-blue-600 ${compact ? 'mb-1 text-[9px]' : 'mb-2 text-[10px]'}`}>Check-out</label>
-            <DatePicker
-              value={checkOut}
-              onChange={setCheckOut}
-              className={`w-full border border-blue-100 bg-white text-sm text-blue-950 outline-none transition duration-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 ${
-                compact ? 'h-9 rounded-lg px-3' : 'h-11 rounded-[1rem] px-4'
-              }`}
-            />
+        {/* Check-out */}
+        <div className="flex items-center gap-2.5 border-r border-slate-100 px-4 py-4">
+          <CalendarDays className="size-4 shrink-0 text-slate-300" />
+          <div className="w-[110px]">
+            <p className="text-[9px] font-bold uppercase tracking-[0.15em] text-slate-400">Check-out</p>
+            <DatePicker value={checkOut} onChange={setCheckOut} className={inputClass} />
           </div>
+        </div>
 
-          <div className={`border border-blue-100 bg-white transition duration-300 hover:border-blue-500 focus-within:border-blue-600 focus-within:shadow-[0_0_0_4px_rgba(59,130,246,0.08)] ${
-            compact ? 'rounded-lg px-3 py-2' : 'rounded-[1.5rem] px-3 py-3'
-          }`}>
-            <p className={`uppercase tracking-[0.24em] text-blue-600 ${compact ? 'mb-1 text-[9px]' : 'mb-2 text-[10px]'}`}>Guests</p>
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-sm font-semibold text-blue-950">{guestCount}</p>
-              <div className={`flex items-center gap-1.5 rounded-full border border-blue-100 bg-blue-50 ${compact ? 'p-0.5' : 'p-1'}`}>
-                <button
-                  type="button"
-                  onClick={() => adjustGuests(-1)}
-                  className={`rounded-full bg-white font-semibold text-blue-950 transition duration-300 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50 ${
-                    compact ? 'h-7 w-7 text-sm' : 'h-9 w-9 text-lg'
-                  }`}
-                  disabled={guestCount <= 1}
-                >
-                  -
-                </button>
-                <button
-                  type="button"
-                  onClick={() => adjustGuests(1)}
-                  className={`rounded-full bg-white font-semibold text-blue-950 transition duration-300 hover:bg-blue-100 ${
-                    compact ? 'h-7 w-7 text-sm' : 'h-9 w-9 text-lg'
-                  }`}
-                >
-                  +
-                </button>
-              </div>
+        {/* Guests */}
+        <div className="flex items-center gap-2.5 border-r border-slate-100 px-4 py-4">
+          <Users className="size-4 shrink-0 text-slate-300" />
+          <div>
+            <p className="text-[9px] font-bold uppercase tracking-[0.15em] text-slate-400">Guests</p>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setGuests((g) => Math.max(1, g - 1))}
+                className="flex size-5 items-center justify-center rounded-full bg-slate-100 text-xs font-bold text-slate-500 transition hover:bg-cyan-100 hover:text-cyan-700 disabled:opacity-40"
+                disabled={guests <= 1}
+                aria-label="Remove guest"
+              >−</button>
+              <span className="min-w-[1.25rem] text-center text-sm font-bold text-slate-900 tabular-nums">{guests}</span>
+              <button
+                type="button"
+                onClick={() => setGuests((g) => g + 1)}
+                className="flex size-5 items-center justify-center rounded-full bg-slate-100 text-xs font-bold text-slate-500 transition hover:bg-cyan-100 hover:text-cyan-700"
+                aria-label="Add guest"
+              >+</button>
             </div>
           </div>
+        </div>
 
+        {/* Search button */}
+        <div className="flex items-center p-2.5">
           <button
             type="submit"
-            style={{ color: 'white' }}
-            className={`bg-blue-950 font-semibold text-white shadow-xl shadow-blue-950/20 transition duration-300 hover:bg-blue-800 ${
-              compact ? 'rounded-lg px-6 py-3 text-sm' : 'rounded-[1.5rem] px-8 py-4 text-sm'
-            }`}
+            className="flex h-full items-center gap-2 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 px-6 text-sm font-bold text-white shadow-md shadow-cyan-500/20 transition hover:from-cyan-400 hover:to-blue-500 active:scale-95"
           >
-            Search
+            <Search className="size-4" />
+            <span>Search</span>
           </button>
-        </form>
-      </div>
+        </div>
+      </form>
     </div>
   )
 }

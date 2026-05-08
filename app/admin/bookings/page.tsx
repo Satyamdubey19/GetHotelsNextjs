@@ -2,36 +2,14 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { CalendarClock } from 'lucide-react';
+import { CalendarClock, CheckCircle2, XCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import StatusBadge from '@/components/ui/StatusBadge';
 import Spinner from '@/components/ui/Spinner';
 import { TablePageSkeleton } from '@/components/ui/loading-skeletons';
 import FilterTabs from '@/components/ui/FilterTabs';
 import Modal from '@/components/ui/Modal';
-
-interface Booking {
-  id: string;
-  guestName: string;
-  guestEmail: string;
-  guestPhone: string;
-  checkInDate?: string;
-  checkOutDate?: string;
-  startDate?: string;
-  endDate?: string;
-  hotelName?: string;
-  tourName?: string;
-  status: 'pending' | 'confirmed' | 'cancelled' | 'completed';
-  totalPrice: number;
-  guestCount: number;
-  hostId: string;
-  hostName: string;
-  createdAt: string;
-  isOverridden?: boolean;
-  overriddenBy?: string;
-  overrideReason?: string;
-  cancellationReason?: string;
-}
+import type { AdminBooking as Booking } from '@/types/admin';
 
 export default function AdminBookingsPage() {
   const router = useRouter();
@@ -44,6 +22,12 @@ export default function AdminBookingsPage() {
   const [newStatus, setNewStatus] = useState<string>('');
   const [overrideReason, setOverrideReason] = useState<string>('');
   const [overriding, setOverriding] = useState(false);
+  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  const showFeedback = (type: 'success' | 'error', message: string) => {
+    setFeedback({ type, message });
+    setTimeout(() => setFeedback(null), 4000);
+  };
 
   useEffect(() => {
     if (!isAdmin) {
@@ -65,7 +49,7 @@ export default function AdminBookingsPage() {
         throw new Error('Failed to fetch bookings');
       }
       const data = await response.json();
-      setBookings(data);
+      setBookings(data.data || []);
     } catch (error) {
       console.error('Error fetching bookings:', error);
     } finally {
@@ -88,18 +72,17 @@ export default function AdminBookingsPage() {
 
   const handleSubmitOverride = async () => {
     if (!selectedBooking || !newStatus || !overrideReason.trim()) {
-      alert('Please fill all fields');
+      showFeedback('error', 'Please fill all fields');
       return;
     }
 
     setOverriding(true);
     try {
-      const response = await fetch(`/api/host/bookings/${selectedBooking.id}`, {
-        method: 'PUT',
+      const response = await fetch(`/api/admin/bookings/${selectedBooking.id}`, {
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          action: 'override',
-          status: newStatus,
+          status: newStatus.toUpperCase(),
           overrideReason: overrideReason.trim(),
         }),
       });
@@ -108,13 +91,13 @@ export default function AdminBookingsPage() {
         throw new Error('Failed to override booking');
       }
 
-      alert('Booking overridden successfully!');
+      showFeedback('success', 'Booking overridden successfully.');
       setShowOverrideModal(false);
       setSelectedBooking(null);
       fetchBookings();
     } catch (error) {
       console.error('Error overriding booking:', error);
-      alert('Failed to override booking');
+      showFeedback('error', 'Failed to override booking.');
     } finally {
       setOverriding(false);
     }
@@ -123,6 +106,20 @@ export default function AdminBookingsPage() {
   return (
     <div className="min-h-screen px-4 py-6 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
+        {feedback && (
+          <div className={`mb-4 flex items-center gap-3 rounded-2xl border px-4 py-3 text-sm font-semibold ${
+            feedback.type === 'success'
+              ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+              : 'border-red-200 bg-red-50 text-red-700'
+          }`}>
+            {feedback.type === 'success'
+              ? <CheckCircle2 className="h-4 w-4 shrink-0" />
+              : <XCircle className="h-4 w-4 shrink-0" />
+            }
+            {feedback.message}
+          </div>
+        )}
+
         <div className="mb-8 rounded-[32px] border border-white/70 bg-white/80 p-6 shadow-[0_24px_70px_rgba(15,23,42,0.08)] backdrop-blur-xl">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-start gap-4">
@@ -169,6 +166,7 @@ export default function AdminBookingsPage() {
                 <tr>
                   <th className="px-6 py-4 text-left font-semibold text-gray-900">Guest</th>
                   <th className="px-6 py-4 text-left font-semibold text-gray-900">Property</th>
+                  <th className="px-6 py-4 text-left font-semibold text-gray-900">Rooms</th>
                   <th className="px-6 py-4 text-left font-semibold text-gray-900">Host</th>
                   <th className="px-6 py-4 text-left font-semibold text-gray-900">Dates</th>
                   <th className="px-6 py-4 text-left font-semibold text-gray-900">Price</th>
@@ -196,6 +194,22 @@ export default function AdminBookingsPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4">
+                      {booking.rooms?.length ? (
+                        <div className="space-y-1">
+                          {booking.rooms.map((room) => (
+                            <div key={room.id} className="text-xs">
+                              <p className="font-semibold text-slate-800">{room.name} x{room.quantity}</p>
+                              <p className="text-slate-500">
+                                {room.availableRooms} available / {room.bookedRooms} booked
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-gray-500">-</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4">
                       <p className="text-gray-900">{booking.hostName}</p>
                     </td>
                     <td className="px-6 py-4 text-xs">
@@ -214,7 +228,7 @@ export default function AdminBookingsPage() {
                       )}
                     </td>
                     <td className="px-6 py-4 font-semibold text-gray-900">
-                      ₹{booking.totalPrice.toLocaleString('en-IN')}
+                      ₹{(booking.totalPrice ?? 0).toLocaleString('en-IN')}
                     </td>
                     <td className="px-6 py-4">
                       <StatusBadge status={booking.status.toUpperCase()} colorMap={{
@@ -272,7 +286,7 @@ export default function AdminBookingsPage() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500"
                   >
                     <option value="pending">Pending</option>
-                    <option value="confirmed">Confirmed</option>
+                    <option value="confirmed">Approved</option>
                     <option value="completed">Completed</option>
                     <option value="cancelled">Cancelled</option>
                   </select>

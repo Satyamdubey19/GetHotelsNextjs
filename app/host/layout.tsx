@@ -197,15 +197,17 @@ export default function HostLayout({
           )}
           <button
             onClick={handleLogout}
-            className="w-full rounded-xl bg-red-600 px-3 py-2 text-sm font-semibold transition-colors hover:bg-red-700"
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-cyan-400/20 bg-cyan-400/10 px-3 py-2.5 text-sm font-semibold text-cyan-100 transition hover:bg-cyan-400/20"
           >
-            {sidebarOpen ? 'Logout' : <LogoutIcon className="mx-auto h-4 w-4" />}
+            <LogoutIcon className="h-4 w-4 shrink-0" />
+            {sidebarOpen && 'Logout'}
           </button>
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="mt-2 w-full px-3 py-2 text-xs text-slate-300 transition hover:text-white"
+            className="mt-2 flex w-full items-center justify-center rounded-xl px-3 py-2 text-slate-400 transition hover:bg-white/5 hover:text-slate-200"
+            aria-label={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
           >
-            {sidebarOpen ? "← Collapse" : "Expand →"}
+            <ChevronCollapseIcon open={sidebarOpen} className="h-4 w-4" />
           </button>
         </div>
       </aside>
@@ -362,5 +364,17 @@ function LogoutIcon({ className }: { className?: string }) {
       <path strokeLinecap="round" strokeLinejoin="round" d="M10 17v2a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
       <path strokeLinecap="round" strokeLinejoin="round" d="m14 16 5-4-5-4m5 4H9" />
     </IconBase>
+  )
+}
+
+function ChevronCollapseIcon({ open, className }: { open: boolean; className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={className} aria-hidden="true">
+      {open ? (
+        <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+      ) : (
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+      )}
+    </svg>
   )
 }

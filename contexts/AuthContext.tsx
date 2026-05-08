@@ -1,6 +1,7 @@
 "use client"
 
 import { createContext, useContext, useEffect, useState } from "react"
+import { signOut } from "next-auth/react"
 
 export type AuthRole = "USER" | "HOST" | "ADMIN"
 
@@ -19,7 +20,7 @@ interface SignupPayload {
   email: string
   phone: string
   password: string
-  accountType: AuthRole
+  accountType: "USER" | "HOST"
   businessName?: string
 }
 
@@ -35,10 +36,11 @@ interface StoredAccount extends AuthUser {
 interface AuthContextType {
   user: AuthUser | null
   loading: boolean
-  login: (email: string, password: string) => Promise<AuthUser>
+  login: (email: string, password: string, expectedRole?: AuthRole) => Promise<AuthUser>
   signup: (payload: SignupPayload) => Promise<AuthUser>
-  becomeHost: (payload: BecomeHostPayload) => AuthUser
-  logout: () => void
+  becomeHost: (payload: BecomeHostPayload) => Promise<AuthUser>
+  updateUser: (updates: Partial<AuthUser>) => AuthUser | null
+  logout: () => Promise<void>
   isAuthenticated: boolean
   isHost: boolean
   isAdmin: boolean
@@ -91,9 +93,13 @@ function sanitizeUser(account: StoredAccount): AuthUser {
   }
 }
 
-function resolvePrimaryRole(role: "USER" | "ADMIN", isHost: boolean): AuthRole {
+function resolvePrimaryRole(role: AuthRole, isHost: boolean): AuthRole {
   if (role === "ADMIN") {
     return "ADMIN"
+  }
+
+  if (role === "HOST") {
+    return "HOST"
   }
 
   if (isHost) {
@@ -107,14 +113,14 @@ function createAuthUserFromApiUser(apiUser: {
   id: number | string
   email: string
   name: string
-  role: "USER" | "ADMIN"
+  role: AuthRole
   phone?: string | null
   businessName?: string | null
   isHost: boolean
 }) {
   const primaryRole = resolvePrimaryRole(apiUser.role, apiUser.isHost)
   const roles = normalizeRoles(
-    [apiUser.role, ...(apiUser.isHost ? ["HOST"] : [])],
+    [apiUser.role, ...(apiUser.isHost ? ["HOST" as const] : [])],
     primaryRole,
   )
 
@@ -279,14 +285,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string, expectedRole?: AuthRole) => {
     try {
       const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, type: expectedRole }),
       })
 
       const payload = await response.json()
@@ -296,6 +302,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       const nextUser = createAuthUserFromApiUser(payload.user)
+      if (expectedRole && !nextUser.roles.includes(expectedRole)) {
+        throw new Error(`This account does not have ${expectedRole.toLowerCase()} access`)
+      }
       persistSession(nextUser, setUser)
       return nextUser
     } catch (error) {
@@ -304,6 +313,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       const nextUser = loginFromLocalAccount(email, password)
+      if (expectedRole && !nextUser.roles.includes(expectedRole)) {
+        throw new Error(`This account does not have ${expectedRole.toLowerCase()} access`)
+      }
       persistSession(nextUser, setUser)
       return nextUser
     }
@@ -312,6 +324,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signup = async ({ name, email, phone, password, accountType, businessName }: SignupPayload) => {
     const response = await fetch("/api/auth/register", {
       method: "POST",
+      credentials: "include",
       headers: {
         "Content-Type": "application/json",
       },
@@ -320,7 +333,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         email,
         phone,
         password,
-        role: accountType === "HOST" ? "host" : accountType === "ADMIN" ? "admin" : "user",
+        role: accountType === "HOST" ? "host" : "user",
         businessName: accountType === "HOST" ? businessName?.trim() : undefined,
       }),
     })
@@ -352,9 +365,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return nextUser
   }
 
-  const becomeHost = ({ businessName, phone }: BecomeHostPayload) => {
+  const becomeHost = async ({ businessName, phone }: BecomeHostPayload) => {
     if (!user) {
       throw new Error("Please log in to activate host access")
+    }
+
+    const response = await fetch("/api/auth/me", {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      credentials: "include",
+      body: JSON.stringify({
+        name: user.name,
+        email: user.email,
+        phone: phone?.trim() || user.phone,
+        businessName: businessName.trim(),
+        activateHost: true,
+      }),
+    }).catch(() => null)
+
+    if (response?.ok) {
+      const payload = await response.json()
+      const nextUser = createAuthUserFromApiUser(payload.user)
+      persistSession(nextUser, setUser)
+      return nextUser
     }
 
     const accounts = readAccounts()
@@ -378,13 +413,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return nextUser
   }
 
-  const logout = () => {
-    void fetch("/api/auth/logout", {
+  const updateUser = (updates: Partial<AuthUser>) => {
+    if (!user) {
+      return null
+    }
+
+    const nextUser = sanitizeUser(hydrateAccount({
+      ...user,
+      ...updates,
+      roles: updates.roles ?? user.roles,
+      role: updates.role ?? user.role,
+    }))
+    persistSession(nextUser, setUser)
+    return nextUser
+  }
+
+  const logout = async () => {
+    persistSession(null, setUser)
+
+    await fetch("/api/auth/logout", {
       method: "POST",
       credentials: "include",
     }).catch(() => undefined)
-
-    persistSession(null, setUser)
+    await signOut({ redirect: false }).catch(() => undefined)
   }
 
   return (
@@ -395,6 +446,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         login,
         signup,
         becomeHost,
+        updateUser,
         logout,
         isAuthenticated: !!user,
         isHost: !!user?.roles.includes("HOST"),

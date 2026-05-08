@@ -3,31 +3,54 @@
 import { useState, useEffect } from "react"
 import { useRouter, useParams } from "next/navigation"
 import Link from "next/link"
+import {
+  ArrowLeft, Map, Tag, Globe, ChevronDown, Plus, Trash2, ImageIcon,
+  CheckCircle, XCircle, Mountain, CalendarDays
+} from "lucide-react"
+import PhotoUploader from "@/components/ui/PhotoUploader"
+import type { DynamicListProps, HostFormSectionCardProps, ItineraryDay, TourForm } from "@/types/host-forms"
 
-interface ItineraryDay {
-  day: number
-  title: string
-  description: string
-  activities: string[]
-  accommodation: string
-  meals: string[]
+const inputCls = "w-full px-3.5 py-2.5 rounded-lg border border-slate-200 text-sm text-slate-900 placeholder:text-slate-400 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-cyan-100 focus:border-cyan-400 focus:bg-white transition"
+const labelCls = "block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5"
+
+function SectionCard({ icon, title, color = "blue", children }: HostFormSectionCardProps) {
+  const colors: Record<string, string> = {
+    blue: "bg-blue-50 text-blue-600", emerald: "bg-emerald-50 text-emerald-600",
+    amber: "bg-amber-50 text-amber-600", violet: "bg-violet-50 text-violet-600",
+    rose: "bg-rose-50 text-rose-600", slate: "bg-slate-100 text-slate-600",
+    green: "bg-green-50 text-green-600",
+  }
+  return (
+    <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+      <div className="flex items-center gap-3 border-b border-slate-100 px-6 py-4">
+        <span className={`flex size-8 shrink-0 items-center justify-center rounded-md ${colors[color]}`}>{icon}</span>
+        <h3 className="text-[15px] font-bold text-slate-900">{title}</h3>
+      </div>
+      <div className="p-6">{children}</div>
+    </div>
+  )
 }
 
-interface TourFormData {
-  name: string
-  description: string
-  location: string
-  duration: number
-  maxGroupSize: number
-  pricePerPerson: number
-  difficulty: string
-  itinerary: ItineraryDay[]
-  images: string[]
-  highlights: string[]
-  inclusionsExclusions: {
-    included: string[]
-    excluded: string[]
-  }
+function DynamicList({ items, onChange, onAdd, onRemove, placeholder }: DynamicListProps) {
+  return (
+    <div className="space-y-2.5">
+      {items.map((item, idx) => (
+        <div key={idx} className="flex items-center gap-2">
+          <input className={inputCls} value={item} placeholder={placeholder} onChange={e => onChange(idx, e.target.value)} />
+          {items.length > 1 && (
+            <button type="button" onClick={() => onRemove(idx)}
+              className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-red-50 text-red-500 transition hover:bg-red-100">
+              <Trash2 size={14} />
+            </button>
+          )}
+        </div>
+      ))}
+      <button type="button" onClick={onAdd}
+        className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-slate-200 py-2.5 text-sm font-semibold text-slate-500 transition hover:border-cyan-300 hover:bg-cyan-50 hover:text-cyan-700">
+        <Plus size={14} /> Add item
+      </button>
+    </div>
+  )
 }
 
 export default function HostTourForm() {
@@ -35,571 +58,312 @@ export default function HostTourForm() {
   const params = useParams()
   const tourId = params?.id as string
   const isEdit = !!tourId && tourId !== "new"
-
   const [loading, setLoading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
-  const [formData, setFormData] = useState<TourFormData>({
-    name: "",
-    description: "",
-    location: "",
-    duration: 3,
-    maxGroupSize: 20,
-    pricePerPerson: 0,
-    difficulty: "moderate",
-    itinerary: Array.from({ length: 3 }, (_, i) => ({
-      day: i + 1,
-      title: "",
-      description: "",
-      activities: [],
-      accommodation: "",
-      meals: ["breakfast", "lunch", "dinner"],
-    })),
-    images: [],
-    highlights: [""],
-    inclusionsExclusions: {
-      included: ["Accommodation", "Meals", "Local Transportation", "Guide"],
-      excluded: ["International Flights", "Travel Insurance"],
-    },
+
+  const makeItinerary = (days: number): ItineraryDay[] =>
+    Array.from({ length: days }, (_, i) => ({ day: i + 1, title: "", description: "", activities: [""], meals: ["Breakfast"] }))
+
+  const [form, setForm] = useState<TourForm>({
+    title: "", slug: "", description: "", destination: "",
+    city: "", state: "", country: "India", latitude: "", longitude: "",
+    duration: "3", maxGroupSize: "15", pricePerPerson: "", originalPrice: "",
+    totalSlots: "15", availableSlots: "15",
+    difficulty: "MODERATE", category: "Adventure", languages: "English",
+    cancellationPolicy: "", status: "PENDING_REVIEW",
+    highlights: [""], included: ["Accommodation", "Meals", "Guide", "Local Transport"],
+    excluded: ["International Flights", "Travel Insurance"],
+    images: [""], itinerary: makeItinerary(3),
   })
 
-  useEffect(() => {
-    if (isEdit) {
-      fetchTour()
-    }
-  }, [isEdit, tourId])
+  useEffect(() => { if (isEdit) fetchTour() }, [isEdit])
 
   const fetchTour = async () => {
     try {
       setLoading(true)
-      const response = await fetch(`/api/host/tours/${tourId}`)
-      if (response.ok) {
-        const { data } = await response.json()
-        setFormData({
-          name: data.name,
-          description: data.description,
-          location: data.location,
-          duration: data.duration,
-          maxGroupSize: data.maxGroupSize,
-          pricePerPerson: data.pricePerPerson,
-          difficulty: data.difficulty,
-          itinerary: data.itinerary || formData.itinerary,
-          images: data.images || [],
-          highlights: data.highlights || [""],
-          inclusionsExclusions: data.inclusionsExclusions || formData.inclusionsExclusions,
-        })
-      }
-    } catch (error) {
-      console.error("Error fetching tour:", error)
-    } finally {
-      setLoading(false)
-    }
+      const res = await fetch(`/api/tour/${tourId}?scope=mine`)
+      if (res.ok) { const { data } = await res.json(); setForm(prev => ({ ...prev, ...data })) }
+    } catch { /* use defaults */ } finally { setLoading(false) }
   }
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    const { name, value } = e.target
-    setFormData(prev => ({
-      ...prev,
-      [name]: name === "duration" || name === "maxGroupSize" || name === "pricePerPerson" ? parseFloat(value) : value,
-    }))
+  const set = (field: keyof TourForm, value: unknown) => setForm(prev => ({ ...prev, [field]: value }))
+
+  const updateArr = (field: "highlights" | "included" | "excluded" | "images", idx: number, val: string) => {
+    const next = [...form[field] as string[]]; next[idx] = val; set(field, next)
+  }
+  const addArr = (field: "highlights" | "included" | "excluded" | "images") => set(field, [...form[field] as string[], ""])
+  const removeArr = (field: "highlights" | "included" | "excluded" | "images", idx: number) =>
+    set(field, (form[field] as string[]).filter((_, i) => i !== idx))
+
+  const updateItiActivity = (dayIdx: number, aIdx: number, val: string) => {
+    const next = [...form.itinerary]; const acts = [...next[dayIdx].activities]; acts[aIdx] = val
+    next[dayIdx] = { ...next[dayIdx], activities: acts }; set("itinerary", next)
   }
 
-  const updateItineraryDay = (dayIndex: number, field: string, value: any) => {
-    setFormData(prev => ({
-      ...prev,
-      itinerary: prev.itinerary.map((day, idx) =>
-        idx === dayIndex ? { ...day, [field]: value } : day
-      ),
-    }))
-  }
-
-  const handleItineraryActivityChange = (dayIndex: number, activityIndex: number, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      itinerary: prev.itinerary.map((day, idx) =>
-        idx === dayIndex
-          ? {
-              ...day,
-              activities: day.activities.map((act, aIdx) => (aIdx === activityIndex ? value : act)),
-            }
-          : day
-      ),
-    }))
-  }
-
-  const addItineraryActivity = (dayIndex: number) => {
-    setFormData(prev => ({
-      ...prev,
-      itinerary: prev.itinerary.map((day, idx) =>
-        idx === dayIndex ? { ...day, activities: [...day.activities, ""] } : day
-      ),
-    }))
-  }
-
-  const removeItineraryActivity = (dayIndex: number, activityIndex: number) => {
-    setFormData(prev => ({
-      ...prev,
-      itinerary: prev.itinerary.map((day, idx) =>
-        idx === dayIndex
-          ? { ...day, activities: day.activities.filter((_, aIdx) => aIdx !== activityIndex) }
-          : day
-      ),
-    }))
-  }
-
-  const handleHighlightChange = (index: number, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      highlights: prev.highlights.map((h, idx) => (idx === index ? value : h)),
-    }))
-  }
-
-  const addHighlight = () => {
-    setFormData(prev => ({
-      ...prev,
-      highlights: [...prev.highlights, ""],
-    }))
-  }
-
-  const removeHighlight = (index: number) => {
-    setFormData(prev => ({
-      ...prev,
-      highlights: prev.highlights.filter((_, idx) => idx !== index),
-    }))
-  }
-
-  const handleInclusionChange = (type: "included" | "excluded", index: number, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      inclusionsExclusions: {
-        ...prev.inclusionsExclusions,
-        [type]: prev.inclusionsExclusions[type].map((item, idx) => (idx === index ? value : item)),
-      },
-    }))
-  }
-
-  const addInclusion = (type: "included" | "excluded") => {
-    setFormData(prev => ({
-      ...prev,
-      inclusionsExclusions: {
-        ...prev.inclusionsExclusions,
-        [type]: [...prev.inclusionsExclusions[type], ""],
-      },
-    }))
-  }
-
-  const removeInclusion = (type: "included" | "excluded", index: number) => {
-    setFormData(prev => ({
-      ...prev,
-      inclusionsExclusions: {
-        ...prev.inclusionsExclusions,
-        [type]: prev.inclusionsExclusions[type].filter((_, idx) => idx !== index),
-      },
-    }))
-  }
-
-  const handleImageAdd = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files
-    if (files) {
-      const newImages = Array.from(files).map(file => URL.createObjectURL(file))
-      setFormData(prev => ({
-        ...prev,
-        images: [...prev.images, ...newImages],
-      }))
-    }
+  const handleDurationChange = (val: string) => {
+    const n = Math.max(1, Math.min(30, parseInt(val) || 1))
+    set("duration", String(n))
+    const current = form.itinerary
+    if (n > current.length) {
+      set("itinerary", [...current, ...makeItinerary(n - current.length).map((d, i) => ({ ...d, day: current.length + i + 1 }))])
+    } else { set("itinerary", current.slice(0, n)) }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setSubmitting(true)
-
+    e.preventDefault(); setSubmitting(true)
     try {
-      const payload = {
-        name: formData.name,
-        description: formData.description,
-        location: formData.location,
-        duration: formData.duration,
-        maxGroupSize: formData.maxGroupSize,
-        pricePerPerson: formData.pricePerPerson,
-        difficulty: formData.difficulty,
-        itinerary: formData.itinerary,
-        images: formData.images.filter(i => i),
-        highlights: formData.highlights.filter(h => h),
-        inclusionsExclusions: formData.inclusionsExclusions,
-      }
-
-      const method = isEdit ? "PUT" : "POST"
-      const url = isEdit ? `/api/host/tours/${tourId}` : "/api/host/tours"
-
-      const response = await fetch(url, {
-        method,
+      const res = await fetch(isEdit ? `/api/tour/${tourId}` : "/api/tour", {
+        method: isEdit ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(form),
       })
-
-      if (!response.ok) throw new Error("Failed to save tour")
-
+      if (!res.ok) throw new Error()
       router.push("/host")
-    } catch (error) {
-      console.error("Error saving tour:", error)
-      alert("Error saving tour. Please try again.")
-    } finally {
-      setSubmitting(false)
-    }
+    } catch { alert("Could not save tour. Please try again.") }
+    finally { setSubmitting(false) }
   }
 
-  if (loading) return <div className="text-center py-12">Loading...</div>
+  if (loading) return (
+    <div className="flex min-h-[60vh] items-center justify-center">
+      <div className="h-10 w-10 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
+    </div>
+  )
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 p-4">
-      <div className="max-w-6xl mx-auto">
-        <Link href="/host" className="text-green-600 hover:underline mb-6 inline-block">
-          ← Back to Dashboard
+    <div className="mx-auto max-w-4xl pb-24">
+      <div className="mb-6 flex items-center gap-4">
+        <Link href="/host" className="flex size-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:bg-slate-50">
+          <ArrowLeft size={16} />
         </Link>
-
-        <h1 className="text-4xl font-bold text-slate-900 mb-8">{isEdit ? "Edit Tour Package" : "Create Tour Package"}</h1>
-
-        <form onSubmit={handleSubmit} className="space-y-8">
-          {/* Basic Information */}
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h2 className="text-2xl font-bold text-slate-900 mb-6">Basic Information</h2>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Tour Name</label>
-                <input
-                  type="text"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                  placeholder="Enter tour name"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Location</label>
-                <input
-                  type="text"
-                  name="location"
-                  value={formData.location}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                  placeholder="Tour destination"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">Description</label>
-              <textarea
-                name="description"
-                value={formData.description}
-                onChange={handleInputChange}
-                rows={4}
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                placeholder="Describe your tour package..."
-              />
-            </div>
-          </div>
-
-          {/* Tour Details */}
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h2 className="text-2xl font-bold text-slate-900 mb-6">Tour Details</h2>
-
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Duration (Days)</label>
-                <input
-                  type="number"
-                  name="duration"
-                  value={formData.duration}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                  min="1"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Max Group Size</label>
-                <input
-                  type="number"
-                  name="maxGroupSize"
-                  value={formData.maxGroupSize}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                  min="1"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Price per Person ($)</label>
-                <input
-                  type="number"
-                  name="pricePerPerson"
-                  value={formData.pricePerPerson}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                  min="0"
-                  step="0.01"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Difficulty</label>
-                <select
-                  name="difficulty"
-                  value={formData.difficulty}
-                  onChange={handleInputChange}
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                >
-                  <option value="easy">Easy</option>
-                  <option value="moderate">Moderate</option>
-                  <option value="hard">Hard</option>
-                </select>
-              </div>
-            </div>
-          </div>
-
-          {/* Highlights */}
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h2 className="text-2xl font-bold text-slate-900 mb-6">Tour Highlights</h2>
-
-            <div className="space-y-3 mb-4">
-              {formData.highlights.map((highlight, idx) => (
-                <div key={idx} className="flex gap-2">
-                  <input
-                    type="text"
-                    value={highlight}
-                    onChange={e => handleHighlightChange(idx, e.target.value)}
-                    className="flex-1 px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                    placeholder={`Highlight ${idx + 1}`}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => removeHighlight(idx)}
-                    className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg font-semibold transition"
-                  >
-                    Remove
-                  </button>
-                </div>
-              ))}
-            </div>
-
-            <button
-              type="button"
-              onClick={addHighlight}
-              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-semibold transition"
-            >
-              + Add Highlight
-            </button>
-          </div>
-
-          {/* Itinerary */}
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h2 className="text-2xl font-bold text-slate-900 mb-6">Day-by-Day Itinerary</h2>
-
-            <div className="space-y-8">
-              {formData.itinerary.map((day, dayIdx) => (
-                <div key={dayIdx} className="border-l-4 border-green-500 pl-6 py-4">
-                  <h3 className="text-lg font-bold text-slate-900 mb-4">Day {day.day}</h3>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                    <div>
-                      <label className="block text-sm font-semibold text-slate-700 mb-2">Day Title</label>
-                      <input
-                        type="text"
-                        value={day.title}
-                        onChange={e => updateItineraryDay(dayIdx, "title", e.target.value)}
-                        className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                        placeholder="e.g., Arrival & City Tour"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-semibold text-slate-700 mb-2">Accommodation</label>
-                      <input
-                        type="text"
-                        value={day.accommodation}
-                        onChange={e => updateItineraryDay(dayIdx, "accommodation", e.target.value)}
-                        className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                        placeholder="Hotel name or type"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="mb-4">
-                    <label className="block text-sm font-semibold text-slate-700 mb-2">Day Description</label>
-                    <textarea
-                      value={day.description}
-                      onChange={e => updateItineraryDay(dayIdx, "description", e.target.value)}
-                      rows={3}
-                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                      placeholder="What happens on this day..."
-                    />
-                  </div>
-
-                  <div className="mb-4">
-                    <label className="block text-sm font-semibold text-slate-700 mb-3">Activities</label>
-                    <div className="space-y-2 mb-3">
-                      {day.activities.map((activity, actIdx) => (
-                        <div key={actIdx} className="flex gap-2">
-                          <input
-                            type="text"
-                            value={activity}
-                            onChange={e => handleItineraryActivityChange(dayIdx, actIdx, e.target.value)}
-                            className="flex-1 px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                            placeholder="Activity name"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => removeItineraryActivity(dayIdx, actIdx)}
-                            className="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg text-sm transition"
-                          >
-                            ×
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => addItineraryActivity(dayIdx)}
-                      className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm font-semibold transition"
-                    >
-                      + Add Activity
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Inclusions & Exclusions */}
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h2 className="text-2xl font-bold text-slate-900 mb-6">Inclusions & Exclusions</h2>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div>
-                <h3 className="text-lg font-bold text-slate-900 mb-4 text-green-700">✓ Included</h3>
-                <div className="space-y-2 mb-4">
-                  {formData.inclusionsExclusions.included.map((item, idx) => (
-                    <div key={idx} className="flex gap-2">
-                      <input
-                        type="text"
-                        value={item}
-                        onChange={e => handleInclusionChange("included", idx, e.target.value)}
-                        className="flex-1 px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                        placeholder="Included item"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => removeInclusion("included", idx)}
-                        className="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg text-sm transition"
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ))}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => addInclusion("included")}
-                  className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm font-semibold transition"
-                >
-                  + Add
-                </button>
-              </div>
-
-              <div>
-                <h3 className="text-lg font-bold text-slate-900 mb-4 text-red-700">✗ Excluded</h3>
-                <div className="space-y-2 mb-4">
-                  {formData.inclusionsExclusions.excluded.map((item, idx) => (
-                    <div key={idx} className="flex gap-2">
-                      <input
-                        type="text"
-                        value={item}
-                        onChange={e => handleInclusionChange("excluded", idx, e.target.value)}
-                        className="flex-1 px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                        placeholder="Excluded item"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => removeInclusion("excluded", idx)}
-                        className="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg text-sm transition"
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ))}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => addInclusion("excluded")}
-                  className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm font-semibold transition"
-                >
-                  + Add
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Images */}
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h2 className="text-2xl font-bold text-slate-900 mb-6">Tour Images</h2>
-
-            <div className="mb-4">
-              <input
-                type="file"
-                multiple
-                accept="image/*"
-                onChange={handleImageAdd}
-                className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100"
-              />
-            </div>
-
-            {formData.images.length > 0 && (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {formData.images.map((img, idx) => (
-                  <div key={idx} className="relative">
-                    <img src={img} alt={`Preview ${idx}`} className="w-full h-24 object-cover rounded-lg" />
-                    <button
-                      type="button"
-                      onClick={() => setFormData(prev => ({
-                        ...prev,
-                        images: prev.images.filter((_, i) => i !== idx),
-                      }))}
-                      className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm"
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Submit */}
-          <div className="flex gap-4">
-            <button
-              type="submit"
-              disabled={submitting}
-              className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-slate-400 text-white px-6 py-3 rounded-lg font-semibold transition"
-            >
-              {submitting ? "Saving..." : isEdit ? "Update Tour" : "Create Tour"}
-            </button>
-            <Link
-              href="/host"
-              className="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-900 px-6 py-3 rounded-lg font-semibold transition text-center"
-            >
-              Cancel
-            </Link>
-          </div>
-        </form>
+        <div>
+          <p className="text-[11px] font-bold uppercase tracking-wider text-blue-600">Tour listing</p>
+          <h1 className="text-2xl font-black tracking-tight text-slate-900">
+            {isEdit ? "Edit Tour Package" : "Add New Tour Package"}
+          </h1>
+        </div>
       </div>
+
+      <form onSubmit={handleSubmit} className="space-y-5">
+
+        {/* ── BASICS ── */}
+        <SectionCard icon={<Map size={16} />} title="Tour Basics">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="sm:col-span-2">
+              <label className={labelCls}>Tour Title *</label>
+              <input className={inputCls} required placeholder="e.g. Manali–Leh Adventure 7D/6N" value={form.title}
+                onChange={e => { set("title", e.target.value); if (!isEdit) set("slug", e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")) }} />
+            </div>
+            <div>
+              <label className={labelCls}>URL Slug *</label>
+              <input className={inputCls} required placeholder="manali-leh-7d" value={form.slug}
+                onChange={e => set("slug", e.target.value)} />
+            </div>
+            <div>
+              <label className={labelCls}>Category</label>
+              <div className="relative">
+                <select className={inputCls + " appearance-none pr-10"} value={form.category}
+                  onChange={e => set("category", e.target.value)}>
+                  {["Adventure","Wellness","Heritage","Water","Food","Culture","Nature","Sports"].map(c =>
+                    <option key={c} value={c}>{c}</option>)}
+                </select>
+                <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              </div>
+            </div>
+            <div className="sm:col-span-2">
+              <label className={labelCls}>Description *</label>
+              <textarea className={inputCls} rows={4} required
+                placeholder="What makes this tour unique? Describe the experience, highlights, and who it's best for."
+                value={form.description} onChange={e => set("description", e.target.value)} />
+            </div>
+          </div>
+        </SectionCard>
+
+        {/* ── PRICING & DETAILS ── */}
+        <SectionCard icon={<Tag size={16} />} title="Pricing &amp; Details" color="emerald">
+          <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
+            <div>
+              <label className={labelCls}>Duration (Days) *</label>
+              <input className={inputCls} required type="number" min="1" max="30" value={form.duration}
+                onChange={e => handleDurationChange(e.target.value)} />
+            </div>
+            <div>
+              <label className={labelCls}>Max Group Size</label>
+              <input className={inputCls} type="number" min="1" value={form.maxGroupSize}
+                onChange={e => set("maxGroupSize", e.target.value)} />
+            </div>
+            <div>
+              <label className={labelCls}>Total Tour Slots</label>
+              <input className={inputCls} type="number" min="1" value={form.totalSlots}
+                onChange={e => set("totalSlots", e.target.value)} />
+            </div>
+            <div>
+              <label className={labelCls}>Available Slots</label>
+              <input className={inputCls} type="number" min="0" max={Number(form.totalSlots) || undefined} value={form.availableSlots}
+                onChange={e => set("availableSlots", e.target.value)} />
+            </div>
+            <div>
+              <label className={labelCls}>Difficulty</label>
+              <div className="relative">
+                <select className={inputCls + " appearance-none pr-10"} value={form.difficulty}
+                  onChange={e => set("difficulty", e.target.value)}>
+                  {["EASY","MODERATE","HARD","EXPERT"].map(d =>
+                    <option key={d} value={d}>{d[0] + d.slice(1).toLowerCase()}</option>)}
+                </select>
+                <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              </div>
+            </div>
+            <div>
+              <label className={labelCls}>Price / Person (₹) *</label>
+              <input className={inputCls} required type="number" min="0" placeholder="12000" value={form.pricePerPerson}
+                onChange={e => set("pricePerPerson", e.target.value)} />
+            </div>
+            <div>
+              <label className={labelCls}>Original Price (₹)</label>
+              <input className={inputCls} type="number" min="0" placeholder="15000" value={form.originalPrice}
+                onChange={e => set("originalPrice", e.target.value)} />
+            </div>
+            <div>
+              <label className={labelCls}>Languages</label>
+              <input className={inputCls} placeholder="English, Hindi" value={form.languages}
+                onChange={e => set("languages", e.target.value)} />
+            </div>
+            <div>
+              <label className={labelCls}>Listing Status</label>
+              <div className="relative">
+                <select className={inputCls + " appearance-none pr-10"} value={form.status}
+                  onChange={e => set("status", e.target.value)}>
+                  {["DRAFT","PENDING_REVIEW","PAUSED"].map(s =>
+                    <option key={s} value={s}>{s.replace(/_/g, " ")}</option>)}
+                </select>
+                <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              </div>
+            </div>
+            <div className="sm:col-span-2">
+              <label className={labelCls}>Cancellation Policy</label>
+              <input className={inputCls} placeholder="e.g. Free cancellation 7 days before departure" value={form.cancellationPolicy}
+                onChange={e => set("cancellationPolicy", e.target.value)} />
+            </div>
+          </div>
+        </SectionCard>
+
+        {/* ── DESTINATION ── */}
+        <SectionCard icon={<Globe size={16} />} title="Destination" color="amber">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="sm:col-span-2">
+              <label className={labelCls}>Destination *</label>
+              <input className={inputCls} required placeholder="e.g. Manali to Leh via Rohtang Pass" value={form.destination}
+                onChange={e => set("destination", e.target.value)} />
+            </div>
+            <div>
+              <label className={labelCls}>City</label>
+              <input className={inputCls} placeholder="Start city" value={form.city} onChange={e => set("city", e.target.value)} />
+            </div>
+            <div>
+              <label className={labelCls}>State</label>
+              <input className={inputCls} placeholder="State / Province" value={form.state} onChange={e => set("state", e.target.value)} />
+            </div>
+            <div>
+              <label className={labelCls}>Country</label>
+              <input className={inputCls} placeholder="Country" value={form.country} onChange={e => set("country", e.target.value)} />
+            </div>
+            <div>
+              <label className={labelCls}>Latitude <span className="normal-case font-normal text-slate-400">(optional GPS)</span></label>
+              <input className={inputCls} type="number" step="any" placeholder="e.g. 32.2432" value={form.latitude}
+                onChange={e => set("latitude", e.target.value)} />
+            </div>
+            <div>
+              <label className={labelCls}>Longitude <span className="normal-case font-normal text-slate-400">(optional GPS)</span></label>
+              <input className={inputCls} type="number" step="any" placeholder="e.g. 77.1892" value={form.longitude}
+                onChange={e => set("longitude", e.target.value)} />
+            </div>
+          </div>
+        </SectionCard>
+
+        {/* ── HIGHLIGHTS ── */}
+        <SectionCard icon={<Mountain size={16} />} title="Tour Highlights" color="violet">
+          <DynamicList items={form.highlights}
+            onChange={(i, v) => updateArr("highlights", i, v)} onAdd={() => addArr("highlights")}
+            onRemove={(i) => removeArr("highlights", i)} placeholder="e.g. Sunrise at Pangong Tso Lake" />
+        </SectionCard>
+
+        {/* ── INCLUDED / EXCLUDED ── */}
+        <div className="grid gap-5 sm:grid-cols-2">
+          <SectionCard icon={<CheckCircle size={16} />} title="What's Included" color="green">
+            <DynamicList items={form.included}
+              onChange={(i, v) => updateArr("included", i, v)} onAdd={() => addArr("included")}
+              onRemove={(i) => removeArr("included", i)} placeholder="e.g. All meals" />
+          </SectionCard>
+          <SectionCard icon={<XCircle size={16} />} title="Not Included" color="rose">
+            <DynamicList items={form.excluded}
+              onChange={(i, v) => updateArr("excluded", i, v)} onAdd={() => addArr("excluded")}
+              onRemove={(i) => removeArr("excluded", i)} placeholder="e.g. Travel insurance" />
+          </SectionCard>
+        </div>
+
+        {/* ── ITINERARY ── */}
+        <SectionCard icon={<CalendarDays size={16} />} title="Day-wise Itinerary">
+          <div className="space-y-4">
+            {form.itinerary.map((day, dayIdx) => (
+              <div key={dayIdx} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                <div className="mb-3 flex items-center gap-3">
+                  <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-[12px] font-black text-blue-700">{day.day}</span>
+                  <input className={inputCls} placeholder={`Day ${day.day} title — e.g. Arrival & Acclimatization`}
+                    value={day.title} onChange={e => { const n = [...form.itinerary]; n[dayIdx].title = e.target.value; set("itinerary", n) }} />
+                </div>
+                <textarea className={inputCls + " mb-3"} rows={2} placeholder="Describe what happens on this day…"
+                  value={day.description} onChange={e => { const n = [...form.itinerary]; n[dayIdx].description = e.target.value; set("itinerary", n) }} />
+                <div>
+                  <p className={labelCls}>Activities</p>
+                  <div className="space-y-2">
+                    {day.activities.map((act, aIdx) => (
+                      <div key={aIdx} className="flex items-center gap-2">
+                        <input className={inputCls} placeholder="e.g. Rohtang Pass sightseeing" value={act}
+                          onChange={e => updateItiActivity(dayIdx, aIdx, e.target.value)} />
+                        {day.activities.length > 1 && (
+                          <button type="button"
+                            onClick={() => { const n = [...form.itinerary]; n[dayIdx].activities = n[dayIdx].activities.filter((_, i) => i !== aIdx); set("itinerary", n) }}
+                            className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-red-50 text-red-400 hover:bg-red-100">
+                            <Trash2 size={13} />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                    <button type="button"
+                      onClick={() => { const n = [...form.itinerary]; n[dayIdx].activities.push(""); set("itinerary", n) }}
+                      className="text-[12px] font-semibold text-blue-600 hover:underline">
+                      + Add activity
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </SectionCard>
+
+        {/* ── IMAGES ── */}
+        <SectionCard icon={<ImageIcon size={16} />} title="Photos" color="slate">
+          <PhotoUploader images={form.images} onChange={urls => set("images", urls)} />
+        </SectionCard>
+
+        {/* ── STICKY FOOTER ── */}
+        <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-slate-200 bg-white/95 px-4 py-3 backdrop-blur sm:px-6">
+          <div className="mx-auto flex max-w-4xl items-center justify-between gap-4">
+            <p className="text-[12px] text-slate-500">Your tour will be submitted for review before going live.</p>
+            <div className="flex gap-3">
+              <Link href="/host" className="rounded-lg border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
+                Cancel
+              </Link>
+              <button type="submit" disabled={submitting}
+                className="flex items-center gap-2 rounded-lg bg-slate-950 px-6 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-cyan-700 disabled:opacity-60">
+                {submitting ? (
+                  <><span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" /> Saving…</>
+                ) : (isEdit ? "Save Changes" : "Create Tour")}
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </form>
     </div>
   )
 }

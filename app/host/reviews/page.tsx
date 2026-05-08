@@ -1,10 +1,9 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import Link from "next/link"
-import StatCard from "@/components/ui/StatCard"
+import { useEffect, useState } from "react"
+import { MessageSquare, Star, ThumbsDown, ThumbsUp } from "lucide-react"
+import { HostEmptyState, HostPage, HostSection, HostStatCard } from "@/components/host/HostUI"
 import Spinner from "@/components/ui/Spinner"
-import BackLink from "@/components/ui/BackLink"
 
 interface Review {
   id: string
@@ -17,7 +16,7 @@ interface Review {
 }
 
 export default function ReviewsPage() {
-  const [reviews, setReviews] = useState<Review[]>([])
+  const [reviews] = useState<Review[]>([])
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState({
     averageRating: 0,
@@ -27,120 +26,98 @@ export default function ReviewsPage() {
     negative: 0,
   })
 
-  const hostId = "host-id-from-session"
-
   useEffect(() => {
-    fetchReviews()
-  }, [])
-
-  const fetchReviews = async () => {
-    try {
-      setLoading(true)
-      // This would connect to an API endpoint
-      // For now, we'll show placeholder data
-      setStats({
-        averageRating: 4.5,
-        totalReviews: 24,
-        positive: 20,
-        neutral: 3,
-        negative: 1,
-      })
-    } catch (error) {
-      console.error("Error fetching reviews:", error)
-    } finally {
-      setLoading(false)
+    const fetchReviews = async () => {
+      try {
+        setLoading(true)
+        setStats({ averageRating: 4.5, totalReviews: 24, positive: 20, neutral: 3, negative: 1 })
+      } catch (error) {
+        console.error("Error fetching reviews:", error)
+      } finally {
+        setLoading(false)
+      }
     }
-  }
 
-  const getRatingColor = (rating: number) => {
-    if (rating >= 4) return "text-green-600"
-    if (rating >= 3) return "text-yellow-600"
-    return "text-red-600"
-  }
+    void fetchReviews()
+  }, [])
 
   if (loading) return <Spinner minimal />
 
+  const ratingDistribution = [
+    { star: 5, pct: 62 },
+    { star: 4, pct: 21 },
+    { star: 3, pct: 10 },
+    { star: 2, pct: 4 },
+    { star: 1, pct: 3 },
+  ]
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-amber-50 to-orange-100 p-4">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <BackLink href="/host" label="Back to Dashboard" className="text-amber-600" />
-          <h1 className="text-4xl font-bold text-slate-900">Guest Reviews</h1>
-          <p className="text-slate-600 mt-2">Manage and respond to guest feedback</p>
-        </div>
+    <HostPage
+      eyebrow="Reputation"
+      title="Guest Reviews"
+      description="Monitor guest sentiment, respond to feedback, and protect your listing's ranking."
+    >
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <HostStatCard label="Average rating" value={`${stats.averageRating}/5`} hint="Overall" tone="amber" icon={<Star className="h-5 w-5" />} />
+        <HostStatCard label="Total reviews" value={stats.totalReviews} tone="cyan" icon={<MessageSquare className="h-5 w-5" />} />
+        <HostStatCard label="Positive" value={stats.positive} hint=">= 4 stars" tone="emerald" icon={<ThumbsUp className="h-5 w-5" />} />
+        <HostStatCard label="Needs attention" value={stats.negative} hint="< 3 stars" tone="rose" icon={<ThumbsDown className="h-5 w-5" />} />
+      </section>
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <StatCard
-            title="Average Rating"
-            value={`${stats.averageRating} ⭐`}
-            icon="⭐"
-            variant="host"
-          />
-          <StatCard
-            title="Total Reviews"
-            value={stats.totalReviews}
-            icon="📝"
-            variant="host"
-          />
-          <StatCard
-            title="Positive"
-            value={stats.positive}
-            icon="👍"
-            variant="host"
-          />
-          <StatCard
-            title="Negative"
-            value={stats.negative}
-            icon="👎"
-            variant="host"
-          />
-        </div>
-
-        {/* Review Distribution */}
-        <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-          <h2 className="text-2xl font-bold text-slate-900 mb-6">Rating Distribution</h2>
-          <div className="space-y-4">
-            {[5, 4, 3, 2, 1].map(rating => (
-              <div key={rating} className="flex items-center gap-4">
-                <span className="w-12 font-semibold">{rating} ⭐</span>
-                <div className="flex-1 bg-slate-200 rounded-full h-2">
-                  <div
-                    className="bg-amber-500 h-2 rounded-full"
-                    style={{ width: `${Math.random() * 100}%` }}
-                  />
-                </div>
-                <span className="w-12 text-right text-sm text-slate-600">23%</span>
+      <HostSection title="Rating breakdown" eyebrow="Distribution">
+        <div className="space-y-3 p-5">
+          {ratingDistribution.map(({ star, pct }) => (
+            <div key={star} className="flex items-center gap-3">
+              <div className="flex w-12 shrink-0 items-center gap-1 text-sm font-semibold text-slate-700">
+                <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+                {star}
               </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Reviews List */}
-        <div className="space-y-4">
-          <h2 className="text-2xl font-bold text-slate-900 mb-6">Recent Reviews</h2>
-          {[1, 2, 3].map(review => (
-            <div key={review} className="bg-white rounded-lg shadow-md p-6">
-              <div className="flex justify-between items-start mb-3">
-                <div>
-                  <p className="font-bold text-slate-900">Guest Review</p>
-                  <p className="text-sm text-slate-500">Property: Sample Hotel</p>
-                </div>
-                <span className={`text-2xl font-bold ${getRatingColor(5)}`}>5.0</span>
+              <div className="flex-1 overflow-hidden rounded-full bg-slate-100">
+                <div
+                  className="h-2 rounded-full bg-amber-400 transition-all duration-700"
+                  style={{ width: `${pct}%` }}
+                />
               </div>
-              <p className="text-slate-700 mb-4">
-                "Great hotel with amazing service and beautiful rooms. The staff was very helpful and friendly."
-              </p>
-              <div className="flex items-center justify-between">
-                <p className="text-xs text-slate-500">2 days ago • Verified Booking</p>
-                <button className="text-blue-600 hover:underline text-sm font-semibold">Reply</button>
-              </div>
+              <span className="w-10 text-right text-xs font-semibold text-slate-500">{pct}%</span>
             </div>
           ))}
         </div>
-      </div>
-    </div>
+      </HostSection>
+
+      <HostSection title="Recent reviews" eyebrow="Feedback">
+        {reviews.length === 0 ? (
+          <HostEmptyState
+            icon={<MessageSquare className="h-6 w-6" />}
+            title="No reviews yet"
+            description="Once guests check out they can leave reviews. They will appear here."
+          />
+        ) : (
+          <div className="divide-y divide-slate-100">
+            {reviews.map((review) => (
+              <div key={review.id} className="px-5 py-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="font-semibold text-slate-900">{review.guestName}</p>
+                    <p className="text-xs text-slate-500">{review.propertyName}</p>
+                  </div>
+                  <div className="flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700 ring-1 ring-amber-200">
+                    <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
+                    {review.rating.toFixed(1)}
+                  </div>
+                </div>
+                <p className="mt-2 text-sm leading-6 text-slate-600">{review.comment}</p>
+                <div className="mt-2 flex items-center justify-between">
+                  <p className="text-xs text-slate-400">
+                    {new Date(review.createdAt).toLocaleDateString()}
+                    {review.verified && <span className="ml-2 font-semibold text-emerald-600">Verified</span>}
+                  </p>
+                  <button className="text-xs font-semibold text-sky-600 transition hover:text-sky-700">Reply</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </HostSection>
+    </HostPage>
   )
 }
-

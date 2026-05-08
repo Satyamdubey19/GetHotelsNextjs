@@ -9,7 +9,7 @@ export default function Subscribe() {
           placeholder="Your email"
           className="w-full rounded-full border border-white/20 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/70 outline-none focus:border-white/40 focus:ring-2 focus:ring-white/30 transition"
         />
-        <button className="rounded-full bg-blue-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 whitespace-nowrap">
+        <button className="rounded-full bg-[#081428] px-6 py-3 text-sm font-semibold text-white transition hover:bg-[#0c1d38] whitespace-nowrap">
           SUBSCRIBE
         </button>
       </div>

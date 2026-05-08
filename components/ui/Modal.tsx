@@ -1,29 +1,43 @@
 'use client'
 
-interface ModalProps {
-  open: boolean
-  onClose: () => void
-  title: string
-  children: React.ReactNode
-  maxWidth?: string
-}
+import { useEffect } from 'react'
+import { X } from 'lucide-react'
+import type { ModalProps } from "@/types/ui"
 
 export default function Modal({ open, onClose, title, children, maxWidth = 'max-w-md' }: ModalProps) {
+  useEffect(() => {
+    if (!open) return
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
+  }, [open, onClose])
+
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className={`bg-white rounded-lg shadow-xl ${maxWidth} w-full max-h-screen overflow-y-auto p-6`}>
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-2xl font-bold text-gray-900">{title}</h2>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      aria-modal="true"
+      role="dialog"
+    >
+      <div
+        className="absolute inset-0 bg-slate-950/50 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      <div
+        className={`relative ${maxWidth} w-full max-h-[90dvh] overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-[0_32px_80px_rgba(15,23,42,0.22)]`}
+      >
+        <div className="sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-slate-100 bg-white px-6 py-4">
+          <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
           <button
             onClick={onClose}
-            className="text-3xl font-bold text-slate-400 hover:text-slate-600 leading-none"
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+            aria-label="Close modal"
           >
-            ×
+            <X className="h-4 w-4" />
           </button>
         </div>
-        {children}
+        <div className="p-6">{children}</div>
       </div>
     </div>
   )

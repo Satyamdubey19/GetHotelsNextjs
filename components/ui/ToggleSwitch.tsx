@@ -1,9 +1,6 @@
 'use client'
 
-interface ToggleSwitchProps {
-  enabled: boolean
-  onChange: () => void
-}
+import type { ToggleSwitchProps } from "@/types/ui"
 
 export default function ToggleSwitch({ enabled, onChange }: ToggleSwitchProps) {
   return (

@@ -6,13 +6,15 @@ import Header from '@/components/layout/Header/Header'
 import Footer from '@/components/layout/Footer/Footer'
 import ToggleSwitch from '@/components/ui/ToggleSwitch'
 import SectionCard from '@/components/ui/SectionCard'
+import { Button } from '@/components/ui/Button'
+import { Card, CardContent } from '@/components/ui/Card'
+import { useAuth } from '@/contexts/AuthContext'
 import {
   User,
   Mail,
   Phone,
   MapPin,
   Calendar,
-  Award,
   Heart,
   MessageSquare,
   Camera,
@@ -45,66 +47,22 @@ import {
   AlertTriangle,
   Star,
   Menu,
+  BadgeCheck,
+  MapPinned,
+  Sparkles,
 } from 'lucide-react'
+import { fetchUserBookings, cancelUserBooking, type BookingRecord } from '@/lib/booking'
+import type {
+  NotificationSettings,
+  PrivacySettings,
+  ProfileSidebarTab,
+  SettingsTab,
+  UserProfile,
+} from '@/types/page-types'
 
-type SettingsTab = 'profile' | 'account' | 'preferences' | 'notifications' | 'privacy' | 'danger'
-
-interface UserProfile {
-  id: string
-  name: string
-  email: string
-  phone: string
-  location: string
-  bio: string
-  avatar: string
-  joinDate: string
-  verified: boolean
-  bookings: number
-  reviews: number
-  posts: number
-  likes: number
-  rating: number
-  dateOfBirth: string
-  gender: string
-  nationality: string
-  address: string
-  emergencyContactName: string
-  emergencyContactPhone: string
-  website: string
-  instagram: string
-  twitter: string
-  travelStyle: string
-  preferredCurrency: string
-  preferredLanguage: string
-  dietaryPreferences: string
-  passportNumber: string
-  frequentFlyerNumber: string
-}
-
-interface NotificationSettings {
-  emailBooking: boolean
-  emailPromotions: boolean
-  emailNewsletter: boolean
-  emailReviews: boolean
-  pushBooking: boolean
-  pushMessages: boolean
-  pushDeals: boolean
-  smsBooking: boolean
-  smsAlerts: boolean
-}
-
-interface PrivacySettings {
-  profileVisibility: 'public' | 'friends' | 'private'
-  showEmail: boolean
-  showPhone: boolean
-  showLocation: boolean
-  showActivity: boolean
-  twoFactorEnabled: boolean
-  loginAlerts: boolean
-}
-
-const sidebarTabs: { key: SettingsTab; label: string; icon: React.ReactNode; color: string }[] = [
+const sidebarTabs: ProfileSidebarTab[] = [
   { key: 'profile', label: 'Profile', icon: <User size={20} />, color: 'text-blue-600' },
+  { key: 'bookings', label: 'My Bookings', icon: <Briefcase size={20} />, color: 'text-blue-600' },
   { key: 'account', label: 'Account', icon: <Settings size={20} />, color: 'text-indigo-600' },
   { key: 'preferences', label: 'Preferences', icon: <Globe size={20} />, color: 'text-purple-600' },
   { key: 'notifications', label: 'Notifications', icon: <Bell size={20} />, color: 'text-green-600' },
@@ -112,41 +70,75 @@ const sidebarTabs: { key: SettingsTab; label: string; icon: React.ReactNode; col
   { key: 'danger', label: 'Danger Zone', icon: <AlertTriangle size={20} />, color: 'text-red-600' },
 ]
 
+const defaultProfile: UserProfile = {
+  id: 'guest',
+  name: 'Traveler',
+  email: 'traveler@gethotels.com',
+  phone: '',
+  location: 'Dehradun, India',
+  bio: 'Travel enthusiast building memorable stays with GetHotels.',
+  avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Traveler',
+  joinDate: new Date().toISOString().slice(0, 10),
+  verified: true,
+  bookings: 24,
+  reviews: 18,
+  posts: 12,
+  likes: 456,
+  rating: 4.8,
+  dateOfBirth: '1992-03-15',
+  gender: 'Male',
+  nationality: 'Indian',
+  address: 'Dehradun, Uttarakhand, India',
+  emergencyContactName: '',
+  emergencyContactPhone: '',
+  website: '',
+  instagram: '',
+  twitter: '',
+  travelStyle: 'Adventure',
+  preferredCurrency: 'INR',
+  preferredLanguage: 'English',
+  dietaryPreferences: 'No restrictions',
+  passportNumber: 'Not added',
+  frequentFlyerNumber: 'Not added',
+}
+
+const getProfileStorageKey = (userId?: string) => `userProfile:${userId ?? 'guest'}`
+
+const createProfileFromSession = (
+  sessionUser: { id: string; name: string; email: string; phone?: string } | null,
+  savedProfile?: Partial<UserProfile>,
+): UserProfile => {
+  const name = sessionUser?.name || savedProfile?.name || defaultProfile.name
+
+  return {
+    ...defaultProfile,
+    ...savedProfile,
+    id: sessionUser?.id ?? savedProfile?.id ?? defaultProfile.id,
+    name,
+    email: sessionUser?.email ?? savedProfile?.email ?? defaultProfile.email,
+    phone: sessionUser?.phone ?? savedProfile?.phone ?? defaultProfile.phone,
+    avatar: savedProfile?.avatar ?? `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(name)}`,
+    verified: Boolean(sessionUser) || (savedProfile?.verified ?? defaultProfile.verified),
+  }
+}
+
+const getInitials = (name: string) => {
+  const initials = name
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join('')
+
+  return initials || 'GH'
+}
+
 export default function ProfilePage() {
+  const { user: authUser, loading: authLoading, isAuthenticated, updateUser } = useAuth()
   const [activeTab, setActiveTab] = useState<SettingsTab>('profile')
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
-  const [userProfile, setUserProfile] = useState<UserProfile>({
-    id: 'USR-001',
-    name: 'Alex Johnson',
-    email: 'alex.johnson@example.com',
-    phone: '+1 (555) 123-4567',
-    location: 'New York, USA',
-    bio: 'Travel enthusiast and photography lover. Always exploring new destinations! 🌍',
-    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Alex',
-    joinDate: '2021-06-15',
-    verified: true,
-    bookings: 24,
-    reviews: 18,
-    posts: 12,
-    likes: 456,
-    rating: 4.8,
-    dateOfBirth: '1992-03-15',
-    gender: 'Male',
-    nationality: 'American',
-    address: '123 Broadway, Apt 4B, New York, NY 10001',
-    emergencyContactName: 'Sarah Johnson',
-    emergencyContactPhone: '+1 (555) 987-6543',
-    website: 'https://alexjohnson.travel',
-    instagram: '@alexjtravels',
-    twitter: '@alexj_travels',
-    travelStyle: 'Adventure',
-    preferredCurrency: 'USD',
-    preferredLanguage: 'English',
-    dietaryPreferences: 'No restrictions',
-    passportNumber: '•••••••7891',
-    frequentFlyerNumber: 'AA-9876543',
-  })
+  const [userProfile, setUserProfile] = useState<UserProfile>(defaultProfile)
 
   const [notifications, setNotifications] = useState<NotificationSettings>({
     emailBooking: true,
@@ -183,29 +175,69 @@ export default function ProfilePage() {
   const [deleteConfirmText, setDeleteConfirmText] = useState('')
   const [savedToast, setSavedToast] = useState(false)
   const [darkMode, setDarkMode] = useState(false)
+  const [userBookings, setUserBookings] = useState<BookingRecord[]>([])
+  const [bookingsLoading, setBookingsLoading] = useState(false)
+  const [bookingsError, setBookingsError] = useState<string | null>(null)
+  const [cancellingId, setCancellingId] = useState<string | null>(null)
 
   useEffect(() => {
+    if (authLoading) return
+
     setIsMounted(true)
-    const savedProfile = localStorage.getItem('userProfile')
-    if (savedProfile) {
-      const parsed = JSON.parse(savedProfile)
-      setUserProfile(parsed)
-      setEditedProfile(parsed)
-    }
+
+    const profileKey = getProfileStorageKey(authUser?.id)
+    const legacyProfile = localStorage.getItem('userProfile')
+    const savedProfile = localStorage.getItem(profileKey) ?? legacyProfile
+    const parsedProfile = savedProfile ? JSON.parse(savedProfile) as Partial<UserProfile> : undefined
+    const nextProfile = createProfileFromSession(authUser, parsedProfile)
+    setUserProfile(nextProfile)
+    setEditedProfile(nextProfile)
+    localStorage.setItem(profileKey, JSON.stringify(nextProfile))
+
     const savedNotifications = localStorage.getItem('notificationSettings')
     if (savedNotifications) setNotifications(JSON.parse(savedNotifications))
     const savedPrivacy = localStorage.getItem('privacySettings')
     if (savedPrivacy) setPrivacy(JSON.parse(savedPrivacy))
-  }, [])
+  }, [authLoading, authUser])
+
+  useEffect(() => {
+    if (activeTab !== 'bookings' || !isAuthenticated) return
+    setBookingsLoading(true)
+    setBookingsError(null)
+    fetchUserBookings()
+      .then(data => setUserBookings(data))
+      .catch(() => setBookingsError('Failed to load bookings'))
+      .finally(() => setBookingsLoading(false))
+  }, [activeTab, isAuthenticated])
 
   const handleSaveProfile = async () => {
     setIsSaving(true)
-    await new Promise(resolve => setTimeout(resolve, 800))
-    setUserProfile(editedProfile)
-    localStorage.setItem('userProfile', JSON.stringify(editedProfile))
-    setIsEditMode(false)
-    setIsSaving(false)
-    showSavedToast()
+    try {
+      const response = await fetch('/api/auth/me', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(editedProfile),
+      })
+      const payload = await response.json()
+      if (!response.ok) {
+        throw new Error(payload.error ?? 'Failed to save profile')
+      }
+
+      setUserProfile(editedProfile)
+      localStorage.setItem(getProfileStorageKey(authUser?.id), JSON.stringify(editedProfile))
+      updateUser({
+        name: editedProfile.name,
+        email: editedProfile.email,
+        phone: editedProfile.phone || undefined,
+      })
+      setIsEditMode(false)
+      showSavedToast()
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Failed to save profile')
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   const handleSaveNotifications = () => {
@@ -231,73 +263,218 @@ export default function ProfilePage() {
 
   const profile = isMounted ? userProfile : null
 
-  if (!profile) return null
+  if (authLoading || !profile) {
+    return (
+      <>
+        <Header />
+        <main className="min-h-screen bg-slate-50 px-4 py-20">
+          <Card className="mx-auto max-w-md rounded-2xl border-0 bg-white shadow-sm ring-1 ring-slate-200">
+            <CardContent className="p-8 text-center">
+              <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-xl bg-blue-50 text-blue-700">
+                <User size={22} />
+              </div>
+              <h1 className="text-xl font-bold text-slate-950">Loading your profile</h1>
+              <p className="mt-2 text-sm text-slate-500">Checking your session and account details.</p>
+            </CardContent>
+          </Card>
+        </main>
+      </>
+    )
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <>
+        <Header />
+        <main className="min-h-screen bg-[linear-gradient(180deg,#f8fafc_0%,#eef6ff_100%)] px-4 py-20">
+          <Card className="mx-auto max-w-lg rounded-2xl border-0 bg-white shadow-xl shadow-slate-200/70 ring-1 ring-slate-200">
+            <CardContent className="p-8 text-center">
+              <div className="mx-auto mb-5 flex size-14 items-center justify-center rounded-2xl bg-slate-950 text-white">
+                <Lock size={24} />
+              </div>
+              <h1 className="text-2xl font-bold text-slate-950">Sign in to view your profile</h1>
+              <p className="mt-3 text-sm leading-6 text-slate-600">
+                Your profile, bookings, wishlist, and preferences are connected to your secure session.
+              </p>
+              <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
+                <Button asChild className="h-10 rounded-xl bg-slate-950 text-white hover:bg-slate-800">
+                  <Link href="/login">Log in</Link>
+                </Button>
+                <Button asChild variant="outline" className="h-10 rounded-xl bg-white">
+                  <Link href="/signup">Create account</Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </main>
+        <Footer />
+      </>
+    )
+  }
+
+  const profileCompletionItems = [
+    { label: 'Identity', done: profile.verified },
+    { label: 'Phone', done: Boolean(profile.phone) },
+    { label: 'Address', done: Boolean(profile.address) },
+    { label: 'Emergency', done: Boolean(profile.emergencyContactName && profile.emergencyContactPhone) },
+    { label: 'Preferences', done: Boolean(profile.travelStyle && profile.preferredCurrency) },
+  ]
+  const completedProfileItems = profileCompletionItems.filter((item) => item.done).length
+  const completionPercent = Math.round((completedProfileItems / profileCompletionItems.length) * 100)
+  const upcomingTrips = [
+    { title: 'Mountain View Suite', date: 'May 12-14', city: profile.location || 'Dehradun', status: 'Ready' },
+    { title: 'Rishikesh River Tour', date: 'Jun 03', city: 'Rishikesh', status: 'Wishlist' },
+  ]
+  const profileInitials = getInitials(profile.name)
+  const showInitialsAvatar = !profile.avatar || profile.avatar.includes('dicebear')
 
   const renderProfileTab = () => (
-    <div>
-      {/* Profile Header Card */}
-      <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden mb-6">
-        <div className="h-32 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-600 relative">
-          <div className="absolute inset-0 opacity-20">
-            <div className="absolute top-0 -right-32 w-96 h-96 bg-white rounded-full mix-blend-screen" />
-            <div className="absolute -bottom-16 -left-32 w-80 h-80 bg-white rounded-full mix-blend-screen" />
-          </div>
-        </div>
-        <div className="px-6 pb-6">
-          <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4 -mt-12">
-            <div className="relative">
-              <img
-                src={profile.avatar}
-                alt={profile.name}
-                className="w-24 h-24 rounded-2xl border-4 border-white shadow-lg object-cover"
-              />
-              <button className="absolute bottom-1 right-1 p-1.5 bg-blue-600 text-white rounded-full shadow hover:bg-blue-700 transition">
-                <Camera size={14} />
-              </button>
-              {profile.verified && (
-                <CheckCircle size={22} className="absolute -top-1 -right-1 text-green-500 bg-white rounded-full" />
-              )}
-            </div>
-            <div className="flex-1">
-              <h2 className="text-xl font-bold text-slate-900">{profile.name}</h2>
-              <p className="text-sm text-slate-500">{profile.email}</p>
-              <div className="flex flex-wrap gap-3 mt-2 text-xs text-slate-500">
-                <span className="flex items-center gap-1"><MapPin size={12} />{profile.location}</span>
-                <span className="flex items-center gap-1"><Calendar size={12} />Joined {new Date(profile.joinDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</span>
-                <span className="flex items-center gap-1"><Star size={12} className="text-yellow-500" />{profile.rating}</span>
+    <div className="space-y-5">
+      <div className="grid gap-5 xl:grid-cols-[1fr_340px]">
+        <Card className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white py-0 shadow-[0_18px_55px_rgba(15,23,42,0.06)]">
+          <CardContent className="p-5 sm:p-6">
+            <div className="flex flex-col gap-6 md:flex-row md:items-center">
+              <div className="relative">
+                {showInitialsAvatar ? (
+                  <div className="flex h-24 w-24 items-center justify-center rounded-2xl bg-slate-950 text-3xl font-black tracking-tight text-white shadow-[0_18px_35px_rgba(15,23,42,0.16)]">
+                    {profileInitials}
+                  </div>
+                ) : (
+                  <img
+                    src={profile.avatar}
+                    alt={profile.name}
+                    className="h-24 w-24 rounded-2xl border border-slate-200 bg-white object-cover shadow-sm"
+                  />
+                )}
+                <button className="absolute -bottom-2 -right-2 flex size-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-blue-600 shadow-sm transition hover:-translate-y-0.5 hover:border-blue-200 hover:bg-blue-50">
+                  <Camera size={15} />
+                </button>
+                {profile.verified && (
+                  <span className="absolute -right-2 -top-2 flex size-8 items-center justify-center rounded-xl bg-emerald-500 text-white ring-4 ring-white">
+                    <CheckCircle size={16} />
+                  </span>
+                )}
               </div>
-            </div>
-            <button
-              onClick={() => {
-                setIsEditMode(!isEditMode)
-                if (isEditMode) setEditedProfile(profile)
-              }}
-              className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition flex items-center gap-2"
-            >
-              {isEditMode ? <><X size={16} /> Cancel</> : <><Edit2 size={16} /> Edit Profile</>}
-            </button>
-          </div>
 
-          {/* Quick Stats */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6 pt-5 border-t border-slate-100">
-            <div className="text-center p-3 bg-blue-50 rounded-xl">
-              <div className="text-xl font-bold text-blue-600">{profile.bookings}</div>
-              <div className="text-xs text-slate-500">Bookings</div>
+              <div className="min-w-0 flex-1">
+                <div className="mb-3 flex flex-wrap gap-2">
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-700">
+                    <Sparkles size={14} />
+                    Traveler profile
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700">
+                    <BadgeCheck size={14} />
+                    Verified
+                  </span>
+                </div>
+                <h2 className="truncate text-3xl font-black tracking-tight text-slate-950 sm:text-[2.6rem]">{profile.name}</h2>
+                <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-sm text-slate-500">
+                  <span className="flex items-center gap-1.5"><Mail size={15} />{profile.email}</span>
+                  <span className="flex items-center gap-1.5"><MapPinned size={15} />{profile.location}</span>
+                  <span className="flex items-center gap-1.5"><Calendar size={15} />Joined {new Date(profile.joinDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</span>
+                </div>
+              </div>
+
+              <Button
+                onClick={() => {
+                  setIsEditMode(!isEditMode)
+                  setEditedProfile(profile)
+                }}
+                className="h-10 rounded-xl bg-slate-950 px-4 text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-blue-700"
+              >
+                {isEditMode ? <><X size={16} /> Cancel</> : <><Edit2 size={16} /> Edit profile</>}
+              </Button>
             </div>
-            <div className="text-center p-3 bg-green-50 rounded-xl">
-              <div className="text-xl font-bold text-green-600">{profile.reviews}</div>
-              <div className="text-xs text-slate-500">Reviews</div>
+
+            <div className="mt-7 grid gap-3 sm:grid-cols-4">
+              {[
+                { label: 'Bookings', value: profile.bookings, icon: Briefcase, color: 'bg-blue-50 text-blue-700' },
+                { label: 'Reviews', value: profile.reviews, icon: MessageSquare, color: 'bg-emerald-50 text-emerald-700' },
+                { label: 'Posts', value: profile.posts, icon: Camera, color: 'bg-violet-50 text-violet-700' },
+                { label: 'Rating', value: profile.rating, icon: Star, color: 'bg-amber-50 text-amber-700' },
+              ].map((item) => (
+                <div key={item.label} className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4 transition duration-300 hover:-translate-y-0.5 hover:bg-white hover:shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <div className={`flex size-10 items-center justify-center rounded-xl ${item.color}`}>
+                      <item.icon size={18} />
+                    </div>
+                    <span className="text-2xl font-black text-slate-950">{item.value}</span>
+                  </div>
+                  <p className="mt-3 text-xs font-bold uppercase tracking-[0.14em] text-slate-400">{item.label}</p>
+                </div>
+              ))}
             </div>
-            <div className="text-center p-3 bg-purple-50 rounded-xl">
-              <div className="text-xl font-bold text-purple-600">{profile.posts}</div>
-              <div className="text-xs text-slate-500">Posts</div>
-            </div>
-            <div className="text-center p-3 bg-red-50 rounded-xl">
-              <div className="text-xl font-bold text-red-600">{profile.likes}</div>
-              <div className="text-xs text-slate-500">Likes</div>
-            </div>
-          </div>
+          </CardContent>
+        </Card>
+
+        <div className="grid gap-4">
+          <Card className="rounded-2xl border border-slate-200/80 bg-white shadow-[0_18px_55px_rgba(15,23,42,0.05)]">
+            <CardContent className="p-5">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.18em] text-blue-600">Profile strength</p>
+                  <h3 className="mt-2 text-2xl font-black text-slate-950">{completionPercent}% complete</h3>
+                </div>
+                <div className="flex size-12 items-center justify-center rounded-2xl bg-slate-100 text-blue-700">
+                  <Shield size={22} />
+                </div>
+              </div>
+              <div className="mt-5 h-2.5 overflow-hidden rounded-full bg-slate-100">
+                <div className="h-full rounded-full bg-gradient-to-r from-blue-600 to-cyan-400 transition-all duration-700" style={{ width: `${completionPercent}%` }} />
+              </div>
+              <div className="mt-5 flex flex-wrap gap-2">
+                {profileCompletionItems.map((item) => (
+                  <div key={item.label} className={`rounded-full px-3 py-1.5 text-xs font-bold ${item.done ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
+                    {item.done ? 'Done' : 'Add'} · {item.label}
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-2xl border border-slate-200/80 bg-white shadow-[0_18px_55px_rgba(15,23,42,0.05)]">
+            <CardContent className="p-5">
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Upcoming activity</p>
+              <div className="mt-4 space-y-3">
+                {upcomingTrips.map((trip) => (
+                  <div key={trip.title} className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-slate-50/80 p-3 transition hover:bg-white">
+                    <div className="flex size-10 items-center justify-center rounded-xl bg-white text-blue-600 shadow-sm">
+                      <Plane size={17} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-bold text-slate-950">{trip.title}</p>
+                      <p className="text-xs text-slate-500">{trip.city} · {trip.date}</p>
+                    </div>
+                    <span className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-slate-600">{trip.status}</span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
         </div>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-3">
+        {[
+          { title: 'Travel wallet', value: '2 saved cards', note: `Preferred currency: ${profile.preferredCurrency}`, icon: Wallet, color: 'bg-emerald-50 text-emerald-700' },
+          { title: 'Trip preferences', value: profile.travelStyle, note: `${profile.preferredLanguage} support enabled`, icon: Languages, color: 'bg-violet-50 text-violet-700' },
+          { title: 'Booking readiness', value: profile.phone ? 'Ready' : 'Needs phone', note: profile.phone ? 'Contact details are available.' : 'Add phone to speed up checkout.', icon: CreditCard, color: 'bg-sky-50 text-sky-700' },
+        ].map((item) => (
+          <Card key={item.title} className="rounded-2xl border border-slate-200/80 bg-white shadow-sm transition duration-300 hover:-translate-y-0.5 hover:shadow-lg">
+            <CardContent className="p-5">
+              <div className="flex items-start gap-4">
+                <div className={`flex size-12 shrink-0 items-center justify-center rounded-2xl ${item.color}`}>
+                  <item.icon size={22} />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">{item.title}</p>
+                  <p className="mt-1 text-lg font-bold text-slate-950">{item.value}</p>
+                  <p className="mt-1 text-sm leading-5 text-slate-500">{item.note}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
       {/* Personal Information */}
@@ -490,6 +667,7 @@ export default function ProfilePage() {
             <Link
               key={item.label}
               href={item.href}
+              onClick={item.label === 'Active Bookings' ? (e) => { e.preventDefault(); setActiveTab('bookings') } : undefined}
               className={`flex items-center justify-between p-4 bg-${item.color}-50 rounded-xl border border-${item.color}-100 hover:shadow-sm transition group`}
             >
               <div className="flex items-center gap-3">
@@ -1020,9 +1198,129 @@ export default function ProfilePage() {
     </div>
   )
 
+  const renderBookingsTab = () => {
+    const statusColors: Record<string, string> = {
+      PENDING: 'bg-yellow-100 text-yellow-700',
+      CONFIRMED: 'bg-emerald-100 text-emerald-700',
+      CANCELLED: 'bg-red-100 text-red-600',
+      COMPLETED: 'bg-blue-100 text-blue-700',
+      CHECKED_IN: 'bg-green-100 text-green-700',
+      CHECKED_OUT: 'bg-slate-100 text-slate-700',
+    }
+
+    const handleCancel = async (id: string) => {
+      if (!confirm('Are you sure you want to cancel this booking?')) return
+      setCancellingId(id)
+      try {
+        await cancelUserBooking(id)
+        setUserBookings(prev =>
+          prev.map(b => b.id === id ? { ...b, status: 'CANCELLED' as BookingRecord['status'] } : b)
+        )
+      } catch {
+        alert('Could not cancel booking. Please try again.')
+      } finally {
+        setCancellingId(null)
+      }
+    }
+
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-xl font-black text-slate-950">My Bookings</h2>
+          <span className="text-sm text-slate-500">
+            {userBookings.length} booking{userBookings.length !== 1 ? 's' : ''}
+          </span>
+        </div>
+
+        {bookingsLoading && (
+          <div className="space-y-3">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="h-28 rounded-2xl bg-slate-100 animate-pulse" />
+            ))}
+          </div>
+        )}
+
+        {!bookingsLoading && bookingsError && (
+          <Card className="rounded-2xl border border-red-200 bg-red-50">
+            <CardContent className="p-6 text-center">
+              <p className="text-sm font-semibold text-red-600">{bookingsError}</p>
+            </CardContent>
+          </Card>
+        )}
+
+        {!bookingsLoading && !bookingsError && userBookings.length === 0 && (
+          <Card className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <CardContent className="p-10 text-center">
+              <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
+                <Briefcase size={24} />
+              </div>
+              <h3 className="text-lg font-bold text-slate-950">No bookings yet</h3>
+              <p className="mt-2 text-sm text-slate-500">Start exploring hotels and book your next stay.</p>
+              <Button asChild className="mt-5 rounded-xl bg-slate-950 text-white hover:bg-blue-700">
+                <Link href="/hotels">Browse Hotels</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {!bookingsLoading && !bookingsError && userBookings.map(booking => (
+          <Card key={booking.id} className="rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:shadow-md">
+            <CardContent className="p-5">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 flex-wrap mb-1">
+                    <h3 className="text-base font-bold text-slate-950">{booking.Hotel?.title ?? 'Hotel'}</h3>
+                    <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${statusColors[booking.status] ?? 'bg-slate-100 text-slate-600'}`}>
+                      {booking.status}
+                    </span>
+                  </div>
+                  {booking.Hotel?.city && (
+                    <p className="text-xs text-slate-500 flex items-center gap-1 mb-2">
+                      <MapPin size={12} /> {booking.Hotel.city}
+                    </p>
+                  )}
+                  <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-slate-600">
+                    <span className="flex items-center gap-1.5">
+                      <Calendar size={14} />
+                      {new Date(booking.checkIn).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      {' → '}
+                      {new Date(booking.checkOut).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    </span>
+                    {booking.BookingRoom?.[0]?.Room?.name && (
+                      <span className="flex items-center gap-1.5">
+                        <Briefcase size={14} /> {booking.BookingRoom[0].Room!.name}
+                        {booking.BookingRoom[0].quantity > 1 && ` ×${booking.BookingRoom[0].quantity}`}
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-2 text-xs text-slate-400">
+                    Booking code: <code className="font-mono font-bold text-slate-700">{booking.bookingCode}</code>
+                  </p>
+                </div>
+                <div className="flex flex-col items-end gap-2 shrink-0">
+                  <p className="text-xl font-black text-slate-950">₹{booking.totalAmount?.toLocaleString('en-IN')}</p>
+                  {(booking.status === 'PENDING' || booking.status === 'CONFIRMED') && (
+                    <button
+                      onClick={() => handleCancel(booking.id)}
+                      disabled={cancellingId === booking.id}
+                      className="px-3 py-1.5 rounded-lg bg-red-50 text-red-600 text-xs font-semibold hover:bg-red-100 transition disabled:opacity-50"
+                    >
+                      {cancellingId === booking.id ? 'Cancelling...' : 'Cancel Booking'}
+                    </button>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    )
+  }
+
   const renderContent = () => {
     switch (activeTab) {
       case 'profile': return renderProfileTab()
+      case 'bookings': return renderBookingsTab()
       case 'account': return renderAccountTab()
       case 'preferences': return renderPreferencesTab()
       case 'notifications': return renderNotificationsTab()
@@ -1043,23 +1341,44 @@ export default function ProfilePage() {
         </div>
       )}
 
-      <div className="min-h-screen bg-slate-50">
-        {/* Page Header */}
-        <div className="bg-white border-b border-slate-200">
-          <div className="container max-w-7xl mx-auto px-4 sm:px-6 py-6">
-            <h1 className="text-2xl font-bold text-slate-900">Account Settings</h1>
-            <p className="text-sm text-slate-500 mt-1">Manage your profile, security, and preferences</p>
-          </div>
-        </div>
-
-        <div className="container max-w-7xl mx-auto px-4 sm:px-6 py-8">
-          <div className="flex flex-col lg:flex-row gap-8">
+      <div className="min-h-screen bg-[linear-gradient(180deg,#f8fafc_0%,#eef4fb_45%,#ffffff_100%)]">
+        <div className="container mx-auto max-w-7xl px-4 py-7 sm:px-6">
+          <section className="mb-5 animate-fade-in-up rounded-2xl border border-slate-200/80 bg-white/90 p-5 shadow-[0_18px_55px_rgba(15,23,42,0.05)] backdrop-blur sm:p-6">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-black uppercase tracking-[0.18em] text-slate-700">
+                  <BadgeCheck size={14} />
+                  Verified traveler
+                </div>
+                <h1 className="text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">Profile</h1>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+                  Manage your personal details, preferences, privacy, and booking readiness in one simple workspace.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                <Button
+                  onClick={() => { setActiveTab('profile'); setIsEditMode(true); setEditedProfile(profile) }}
+                  className="h-10 rounded-xl bg-slate-950 px-4 text-white transition hover:-translate-y-0.5 hover:bg-blue-700"
+                >
+                  <Edit2 size={16} />
+                  Edit profile
+                </Button>
+                <Button asChild variant="outline" className="h-10 rounded-xl border-slate-200 bg-white px-4 text-slate-800 transition hover:-translate-y-0.5 hover:bg-blue-50 hover:text-blue-700">
+                  <Link href="/hotels">
+                    <Plane size={16} />
+                    Plan trip
+                  </Link>
+                </Button>
+              </div>
+            </div>
+          </section>
+          <div className="flex flex-col gap-6 lg:flex-row">
             {/* Sidebar */}
             <div className="lg:w-64 flex-shrink-0">
               {/* Mobile Tab Selector */}
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="lg:hidden w-full flex items-center justify-between p-4 bg-white rounded-xl border border-slate-200 mb-3"
+                className="mb-3 flex w-full items-center justify-between rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-sm lg:hidden"
               >
                 <div className="flex items-center gap-3">
                   {sidebarTabs.find(t => t.key === activeTab)?.icon}
@@ -1068,15 +1387,15 @@ export default function ProfilePage() {
                 <Menu size={20} className="text-slate-400" />
               </button>
 
-              <nav className={`bg-white rounded-xl border border-slate-200 overflow-hidden lg:block ${mobileMenuOpen ? 'block' : 'hidden'} lg:sticky lg:top-24`}>
+              <nav className={`overflow-hidden rounded-2xl border border-slate-200 bg-white/95 shadow-sm lg:sticky lg:top-24 lg:block ${mobileMenuOpen ? 'block' : 'hidden'}`}>
                 {sidebarTabs.map(tab => (
                   <button
                     key={tab.key}
                     onClick={() => { setActiveTab(tab.key); setMobileMenuOpen(false) }}
-                    className={`w-full flex items-center gap-3 px-4 py-3.5 text-sm font-medium transition border-l-[3px] ${
+                    className={`flex w-full items-center gap-3 border-l-[3px] px-4 py-3.5 text-sm font-semibold transition ${
                       activeTab === tab.key
-                        ? `${tab.color} bg-slate-50 border-current font-semibold`
-                        : 'text-slate-600 border-transparent hover:bg-slate-50 hover:text-slate-900'
+                        ? `${tab.color} border-current bg-slate-50`
+                        : 'border-transparent text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                     }`}
                   >
                     <span className={activeTab === tab.key ? tab.color : 'text-slate-400'}>{tab.icon}</span>
@@ -1087,7 +1406,7 @@ export default function ProfilePage() {
 
               {/* Verified Badge (sidebar) */}
               {profile.verified && (
-                <div className="hidden lg:block mt-6 p-5 bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl border border-green-200">
+                <div className="mt-4 hidden rounded-2xl border border-emerald-200 bg-emerald-50 p-5 shadow-sm lg:block">
                   <div className="flex items-center gap-2 mb-2">
                     <CheckCircle size={20} className="text-green-600" />
                     <h4 className="text-sm font-bold text-slate-900">Verified Member</h4>
@@ -1097,7 +1416,7 @@ export default function ProfilePage() {
               )}
 
               {/* User ID (sidebar) */}
-              <div className="hidden lg:block mt-4 p-4 bg-white rounded-xl border border-slate-200">
+                <div className="mt-4 hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-sm lg:block">
                 <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">User ID</p>
                 <div className="flex items-center justify-between">
                   <code className="text-xs font-mono font-bold text-slate-700">{profile.id}</code>
@@ -1119,3 +1438,4 @@ export default function ProfilePage() {
     </>
   )
 }
+

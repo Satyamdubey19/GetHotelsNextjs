@@ -1,11 +1,5 @@
 import Input from "@/components/ui/Input"
-
-type LocationInputProps = {
-  value: string
-  onChange: (value: string) => void
-  className?: string
-  placeholder?: string
-}
+import type { LocationInputProps } from "@/types/search"
 
 export default function LocationInput({ value, onChange, className, placeholder }: LocationInputProps) {
   return (

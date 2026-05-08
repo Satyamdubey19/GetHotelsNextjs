@@ -1,9 +1,4 @@
-type DatePickerProps = {
-  label?: string
-  value: string
-  onChange: (value: string) => void
-  className?: string
-}
+import type { DatePickerProps } from "@/types/search"
 
 export default function DatePicker({ label, value, onChange, className }: DatePickerProps) {
   return (

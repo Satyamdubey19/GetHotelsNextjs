@@ -1,9 +1,9 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import Link from "next/link"
-import { Clock3, ShieldCheck } from 'lucide-react'
+import { CheckCircle2, Clock3, ShieldCheck, XCircle } from 'lucide-react'
 import BackLink from "@/components/ui/BackLink"
+import FilterTabs from "@/components/ui/FilterTabs"
 import StatusBadge from "@/components/ui/StatusBadge"
 import Spinner from "@/components/ui/Spinner"
 import { TablePageSkeleton } from "@/components/ui/loading-skeletons"
@@ -39,10 +39,11 @@ interface KYCApplication {
 export default function AdminKYCPage() {
   const [applications, setApplications] = useState<KYCApplication[]>([])
   const [loading, setLoading] = useState(true)
-  const [filterStatus, setFilterStatus] = useState("PENDING")
+  const [filterStatus, setFilterStatus] = useState<"PENDING" | "APPROVED" | "REJECTED">("PENDING")
   const [selectedApp, setSelectedApp] = useState<KYCApplication | null>(null)
   const [rejectionReason, setRejectionReason] = useState("")
   const [processing, setProcessing] = useState(false)
+  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
 
   useEffect(() => {
     fetchApplications()
@@ -63,9 +64,12 @@ export default function AdminKYCPage() {
     }
   }
 
-  const handleApprove = async (kycId: string) => {
-    if (!confirm("Are you sure you want to approve this KYC?")) return
+  const showFeedback = (type: 'success' | 'error', message: string) => {
+    setFeedback({ type, message })
+    setTimeout(() => setFeedback(null), 4000)
+  }
 
+  const handleApprove = async (kycId: string) => {
     setProcessing(true)
     try {
       const response = await fetch(`/api/admin/kyc/${kycId}`, {
@@ -75,13 +79,14 @@ export default function AdminKYCPage() {
       })
 
       if (response.ok) {
-        alert("KYC approved successfully!")
+        showFeedback('success', "KYC approved successfully.")
         fetchApplications()
         setSelectedApp(null)
+      } else {
+        showFeedback('error', "Failed to approve KYC.")
       }
-    } catch (error) {
-      console.error("Error approving KYC:", error)
-      alert("Failed to approve KYC")
+    } catch {
+      showFeedback('error', "Network error. Please try again.")
     } finally {
       setProcessing(false)
     }
@@ -89,11 +94,9 @@ export default function AdminKYCPage() {
 
   const handleReject = async (kycId: string) => {
     if (!rejectionReason.trim()) {
-      alert("Please provide a rejection reason")
+      showFeedback('error', "Please provide a rejection reason.")
       return
     }
-
-    if (!confirm("Are you sure you want to reject this KYC?")) return
 
     setProcessing(true)
     try {
@@ -104,14 +107,15 @@ export default function AdminKYCPage() {
       })
 
       if (response.ok) {
-        alert("KYC rejected successfully!")
+        showFeedback('success', "KYC rejected.")
         fetchApplications()
         setSelectedApp(null)
         setRejectionReason("")
+      } else {
+        showFeedback('error', "Failed to reject KYC.")
       }
-    } catch (error) {
-      console.error("Error rejecting KYC:", error)
-      alert("Failed to reject KYC")
+    } catch {
+      showFeedback('error', "Network error. Please try again.")
     } finally {
       setProcessing(false)
     }
@@ -123,6 +127,21 @@ export default function AdminKYCPage() {
     <div className="min-h-screen px-4 py-6 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
         <BackLink href="/admin" label="Back to Admin" className="text-sky-700" />
+
+        {/* Feedback banner */}
+        {feedback && (
+          <div className={`mb-4 mt-4 flex items-center gap-3 rounded-2xl border px-4 py-3 text-sm font-semibold ${
+            feedback.type === 'success'
+              ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+              : 'border-red-200 bg-red-50 text-red-700'
+          }`}>
+            {feedback.type === 'success'
+              ? <CheckCircle2 className="h-4 w-4 shrink-0" />
+              : <XCircle className="h-4 w-4 shrink-0" />
+            }
+            {feedback.message}
+          </div>
+        )}
 
         <div className="mb-8 mt-4 rounded-[32px] border border-white/70 bg-white/80 p-6 shadow-[0_24px_70px_rgba(15,23,42,0.08)] backdrop-blur-xl">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -144,17 +163,13 @@ export default function AdminKYCPage() {
         </div>
 
         {/* Filter */}
-        <div className="mb-8 rounded-[32px] border border-white/70 bg-white/80 p-6 shadow-[0_24px_70px_rgba(15,23,42,0.08)] backdrop-blur-xl">
-          <select
-            value={filterStatus}
-            onChange={e => setFilterStatus(e.target.value)}
-            className="rounded-2xl border border-slate-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500"
-          >
-            <option value="PENDING">Pending</option>
-            <option value="APPROVED">Approved</option>
-            <option value="REJECTED">Rejected</option>
-          </select>
-          <p className="text-slate-600 mt-2">{applications.length} applications found</p>
+        <div className="mb-6 flex items-center gap-4">
+          <FilterTabs
+            tabs={['PENDING', 'APPROVED', 'REJECTED'] as const}
+            active={filterStatus}
+            onChange={setFilterStatus}
+            formatLabel={t => t.charAt(0) + t.slice(1).toLowerCase()}
+          />
         </div>
 
         {/* Applications List */}
@@ -238,32 +253,36 @@ export default function AdminKYCPage() {
               )}
 
               {selectedApp.status === "PENDING" && (
-                <div className="space-y-4 mt-6">
+                <div className="space-y-4 mt-6 border-t border-slate-100 pt-5">
                   <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-2">Rejection Reason (if rejecting)</label>
+                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-500">
+                      Rejection reason <span className="text-red-500">*</span>
+                    </label>
                     <textarea
                       value={rejectionReason}
                       onChange={e => setRejectionReason(e.target.value)}
                       rows={3}
-                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500"
-                      placeholder="Enter rejection reason..."
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-900 focus:border-sky-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-100"
+                      placeholder="Required if rejecting. Explain what was missing or incorrect."
                     />
                   </div>
 
-                  <div className="flex gap-4">
+                  <div className="flex gap-3">
                     <button
                       onClick={() => handleApprove(selectedApp.id)}
                       disabled={processing}
-                      className="flex-1 rounded-lg bg-sky-600 py-2 font-semibold text-white hover:bg-sky-700 disabled:bg-slate-400"
+                      className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-600 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      {processing ? "Processing..." : "✓ Approve"}
+                      <CheckCircle2 className="h-4 w-4" />
+                      {processing ? "Processing..." : "Approve"}
                     </button>
                     <button
                       onClick={() => handleReject(selectedApp.id)}
                       disabled={processing || !rejectionReason.trim()}
-                      className="flex-1 rounded-lg bg-slate-800 py-2 font-semibold text-white hover:bg-slate-900 disabled:bg-slate-400"
+                      className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-50 py-2.5 text-sm font-semibold text-red-600 transition hover:bg-red-50 hover:border-red-200 disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      {processing ? "Processing..." : "✗ Reject"}
+                      <XCircle className="h-4 w-4" />
+                      {processing ? "Processing..." : "Reject"}
                     </button>
                   </div>
                 </div>

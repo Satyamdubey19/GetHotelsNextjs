@@ -38,6 +38,12 @@ export default function AdminPayoutsPage() {
   const [transactionId, setTransactionId] = useState<string>('');
   const [failureReason, setFailureReason] = useState<string>('');
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  const showFeedback = (type: 'success' | 'error', message: string) => {
+    setFeedback({ type, message });
+    setTimeout(() => setFeedback(null), 4000);
+  };
 
   useEffect(() => {
     if (!isAdmin) {
@@ -85,12 +91,12 @@ export default function AdminPayoutsPage() {
     if (!selectedPayout) return;
 
     if (newStatus === 'completed' && !transactionId.trim()) {
-      alert('Please enter transaction ID for completed payouts');
+      showFeedback('error', 'Please enter transaction ID for completed payouts');
       return;
     }
 
     if (newStatus === 'failed' && !failureReason.trim()) {
-      alert('Please provide reason for failed payout');
+      showFeedback('error', 'Please provide reason for failed payout');
       return;
     }
 
@@ -110,13 +116,13 @@ export default function AdminPayoutsPage() {
         throw new Error('Failed to update payout');
       }
 
-      alert(`Payout moved to ${newStatus.toUpperCase()}`);
+      showFeedback('success', `Payout moved to ${newStatus.toUpperCase()}`);
       setShowProcessModal(false);
       setSelectedPayout(null);
       fetchPayouts();
     } catch (error) {
       console.error('Error processing payout:', error);
-      alert('Failed to process payout');
+      showFeedback('error', 'Failed to process payout');
     } finally {
       setProcessingId(null);
     }
@@ -134,6 +140,20 @@ export default function AdminPayoutsPage() {
   return (
     <div className="min-h-screen px-4 py-6 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
+        {feedback && (
+          <div className={`mb-4 flex items-center gap-3 rounded-2xl border px-4 py-3 text-sm font-semibold ${
+            feedback.type === 'success'
+              ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+              : 'border-red-200 bg-red-50 text-red-700'
+          }`}>
+            {feedback.type === 'success'
+              ? <CheckCircle2 className="h-4 w-4 shrink-0" />
+              : <span className="h-4 w-4 shrink-0 text-red-500">✕</span>
+            }
+            {feedback.message}
+          </div>
+        )}
+
         <div className="mb-8 rounded-[32px] border border-white/70 bg-white/80 p-6 shadow-[0_24px_70px_rgba(15,23,42,0.08)] backdrop-blur-xl">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-start gap-4">

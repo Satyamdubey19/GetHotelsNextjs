@@ -7,6 +7,7 @@ export type HotelReview = {
 }
 
 export type Hotel = {
+  id?: string
   slug: string
   title: string
   location: string
@@ -21,6 +22,16 @@ export type Hotel = {
   reviews: HotelReview[]
 }
 
+const hotelImages = [
+  "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=80",
+  "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?auto=format&fit=crop&w=1200&q=80",
+  "https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?auto=format&fit=crop&w=1200&q=80",
+  "https://images.unsplash.com/photo-1571896349842-33c89424de2d?auto=format&fit=crop&w=1200&q=80",
+  "https://images.unsplash.com/photo-1564501049412-61c2a3083791?auto=format&fit=crop&w=1200&q=80",
+  "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=1200&q=80",
+  "https://images.unsplash.com/photo-1568084680786-a84f91d1153c?auto=format&fit=crop&w=1200&q=80",
+]
+
 export const hotels: Hotel[] = [
   {
     slug: "seyfert-sarovar",
@@ -29,10 +40,10 @@ export const hotels: Hotel[] = [
     city: "Dehradun",
     price: 10000,
     rating: 4.8,
-    image: "/hotel1.jpg",
+    image: hotelImages[0],
     description:
       "A premium alpine retreat offering elegant rooms, wellness amenities, and easy access to Dehradun's top attractions.",
-    gallery: ["/hotel1.jpg", "/hotel2.jpg", "/hotel3.jpg", "/hotel4.jpg"],
+    gallery: [hotelImages[0], hotelImages[1], hotelImages[2], hotelImages[3]],
     amenities: [
       "Rooftop pool",
       "Spa and wellness center",
@@ -72,10 +83,10 @@ export const hotels: Hotel[] = [
     city: "Dehradun",
     price: 12000,
     rating: 4.9,
-    image: "/hotel2.jpg",
+    image: hotelImages[1],
     description:
       "A modern resort with luxurious rooms, scenic mountain views, and curated dining experiences for every traveler.",
-    gallery: ["/hotel2.jpg", "/hotel3.jpg", "/hotel4.jpg", "/hotel1.jpg"],
+    gallery: [hotelImages[1], hotelImages[2], hotelImages[3], hotelImages[0]],
     amenities: [
       "Outdoor pool",
       "Fitness center",
@@ -115,10 +126,10 @@ export const hotels: Hotel[] = [
     city: "Mussoorie",
     price: 15000,
     rating: 5.0,
-    image: "/hotel3.jpg",
+    image: hotelImages[2],
     description:
       "Luxury hillside hotel offering stunning valley views, refined accommodations, and signature hospitality.",
-    gallery: ["/hotel3.jpg", "/hotel4.jpg", "/hotel1.jpg", "/hotel2.jpg"],
+    gallery: [hotelImages[2], hotelImages[3], hotelImages[0], hotelImages[1]],
     amenities: [
       "Fine dining restaurant",
       "Spa treatments",
@@ -158,10 +169,10 @@ export const hotels: Hotel[] = [
     city: "Rishikesh",
     price: 9000,
     rating: 4.7,
-    image: "/hotel4.jpg",
+    image: hotelImages[3],
     description:
       "A boutique stay near the river with elegant interiors, wellness facilities, and soulful dining.",
-    gallery: ["/hotel4.jpg", "/hotel1.jpg", "/hotel2.jpg", "/hotel3.jpg"],
+    gallery: [hotelImages[3], hotelImages[0], hotelImages[1], hotelImages[2]],
     amenities: [
       "River view rooms",
       "Meditation lounge",
@@ -201,10 +212,10 @@ export const hotels: Hotel[] = [
     city: "Goa",
     price: 8500,
     rating: 4.6,
-    image: "/hotel1.jpg",
+    image: hotelImages[4],
     description:
       "A vibrant beachside retreat with lively ambiance, modern rooms, and direct access to Goa's famous beaches and nightlife.",
-    gallery: ["/hotel1.jpg", "/hotel2.jpg", "/hotel3.jpg", "/hotel4.jpg"],
+    gallery: [hotelImages[4], hotelImages[5], hotelImages[6], hotelImages[0]],
     amenities: [
       "Beach access",
       "Outdoor pool",
@@ -243,10 +254,10 @@ export const hotels: Hotel[] = [
     city: "Jaipur",
     price: 18000,
     rating: 4.9,
-    image: "/hotel3.jpg",
+    image: hotelImages[5],
     description:
       "Experience royal Rajasthani grandeur at this palatial hotel featuring ornate interiors, heritage architecture, and world-class dining.",
-    gallery: ["/hotel3.jpg", "/hotel1.jpg", "/hotel2.jpg", "/hotel4.jpg"],
+    gallery: [hotelImages[5], hotelImages[0], hotelImages[1], hotelImages[3]],
     amenities: [
       "Fine dining restaurant",
       "Spa treatments",
@@ -285,10 +296,10 @@ export const hotels: Hotel[] = [
     city: "Mumbai",
     price: 14000,
     rating: 4.7,
-    image: "/hotel2.jpg",
+    image: hotelImages[6],
     description:
       "Luxury business hotel in the heart of Mumbai with panoramic city views, state-of-the-art conference facilities, and award-winning restaurants.",
-    gallery: ["/hotel2.jpg", "/hotel3.jpg", "/hotel4.jpg", "/hotel1.jpg"],
+    gallery: [hotelImages[6], hotelImages[2], hotelImages[3], hotelImages[0]],
     amenities: [
       "Rooftop pool",
       "Fitness center",
