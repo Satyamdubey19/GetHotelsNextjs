@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 import { prisma } from "@/lib/prisma";
 import { generateToken, hashToken } from "@/lib/hash";
 import { sendAuthEmail, sendVerificationEmail } from "@/lib/mail";
+import type { Gender } from "@prisma/client";
 import type { AuthRole, LoginInput, RegisterInput } from "@/types/auth";
 
 const passwordRounds = 12;
@@ -32,6 +33,14 @@ function normalizeRole(role?: string): AuthRole {
     return upper;
   }
   return "USER";
+}
+
+function normalizeGender(value?: string | null): Gender | null {
+  const upper = value?.trim().toUpperCase()
+  if (upper === "MALE" || upper === "FEMALE" || upper === "NON_BINARY" || upper === "PREFER_NOT_TO_SAY") {
+    return upper as Gender
+  }
+  return null
 }
 
 function getJwtSecret() {
@@ -384,7 +393,7 @@ export async function updateAuthenticatedUser(userId: number | string, input: Pa
       userId: id,
       bio: input.bio?.trim() || null,
       dateOfBirth: input.dateOfBirth ? new Date(input.dateOfBirth) : null,
-      gender: input.gender?.trim() || null,
+      gender: normalizeGender(input.gender),
       address: input.address?.trim() || null,
       city: input.location?.trim() || null,
       preferences: profilePreferences,
@@ -392,7 +401,7 @@ export async function updateAuthenticatedUser(userId: number | string, input: Pa
     update: {
       bio: input.bio?.trim() || null,
       dateOfBirth: input.dateOfBirth ? new Date(input.dateOfBirth) : null,
-      gender: input.gender?.trim() || null,
+      gender: normalizeGender(input.gender),
       address: input.address?.trim() || null,
       city: input.location?.trim() || null,
       preferences: profilePreferences,

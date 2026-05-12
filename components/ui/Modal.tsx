@@ -16,7 +16,7 @@ export default function Modal({ open, onClose, title, children, maxWidth = 'max-
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6"
       aria-modal="true"
       role="dialog"
     >
@@ -25,9 +25,9 @@ export default function Modal({ open, onClose, title, children, maxWidth = 'max-
         onClick={onClose}
       />
       <div
-        className={`relative ${maxWidth} w-full max-h-[90dvh] overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-[0_32px_80px_rgba(15,23,42,0.22)]`}
+        className={`relative ${maxWidth} flex max-h-[calc(100dvh-2rem)] w-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_32px_80px_rgba(15,23,42,0.22)]`}
       >
-        <div className="sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-slate-100 bg-white px-6 py-4">
+        <div className="shrink-0 flex items-center justify-between gap-4 border-b border-slate-100 bg-white px-4 py-3 sm:px-6 sm:py-4">
           <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
           <button
             onClick={onClose}
@@ -37,7 +37,7 @@ export default function Modal({ open, onClose, title, children, maxWidth = 'max-
             <X className="h-4 w-4" />
           </button>
         </div>
-        <div className="p-6">{children}</div>
+        <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">{children}</div>
       </div>
     </div>
   )

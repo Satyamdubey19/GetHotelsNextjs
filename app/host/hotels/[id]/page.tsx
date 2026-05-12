@@ -38,7 +38,7 @@ const blankRoom = (): RoomEntry => ({
   name: "", type: "STANDARD", description: "", pricePerNight: "", originalPrice: "",
   capacity: "2", maxAdults: "2", maxChildren: "1", totalRooms: "1", availableRooms: "1",
   bedConfiguration: "", sizeSqFt: "", viewType: "",
-  smokingAllowed: false, amenities: [], images: [], cancellationPolicy: "",
+  smokingAllowed: false, isActive: true, amenities: [], images: [], cancellationPolicy: "",
 })
 
 const inputCls = "w-full px-3.5 py-2.5 rounded-lg border border-slate-200 text-sm text-slate-900 placeholder:text-slate-400 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-cyan-100 focus:border-cyan-400 focus:bg-white transition"
@@ -74,7 +74,7 @@ export default function HostHotelForm() {
 
   const [form, setForm] = useState<FormData>({
     title: "", slug: "", description: "", propertyType: "HOTEL", starRating: "3",
-    status: "DRAFT", phone: "", email: "", checkInTime: "14:00", checkOutTime: "11:00",
+    status: "DRAFT", isActive: true, phone: "", email: "", checkInTime: "14:00", checkOutTime: "11:00",
     cancellationPolicy: "", petPolicy: "", childPolicy: "",
     location: "", address: "", city: "", state: "", country: "India", postalCode: "",
     latitude: "", longitude: "",
@@ -212,6 +212,19 @@ export default function HostHotelForm() {
                 <p className="mt-1 text-[11px] text-slate-400">Any host edit sends this hotel back to admin review before it appears publicly.</p>
               </div>
             )}
+            <div>
+              <label className={labelCls}>Listing Availability</label>
+              <button type="button"
+                onClick={() => set("isActive", !form.isActive)}
+                className={`flex w-full items-center justify-center rounded-lg border px-4 py-2.5 text-sm font-semibold transition ${
+                  form.isActive
+                    ? "border-emerald-300 bg-emerald-50 text-emerald-700"
+                    : "border-amber-300 bg-amber-50 text-amber-700"
+                }`}>
+                {form.isActive ? "Active and bookable" : "Paused / not bookable"}
+              </button>
+              <p className="mt-1 text-[11px] text-slate-400">Pause the hotel any time to remove it from public booking.</p>
+            </div>
             <div className="sm:col-span-2">
               <label className={labelCls}>Description *</label>
               <textarea className={inputCls} rows={4} required placeholder="Describe your property — surroundings, style, and what makes it special."
@@ -407,6 +420,15 @@ export default function HostHotelForm() {
                           : "border-slate-200 bg-slate-50 text-slate-500 hover:border-slate-300"
                       }`}>
                       <span>{room.smokingAllowed ? "Smoking allowed" : "No smoking"}</span>
+                    </button>
+                    <button type="button"
+                      onClick={() => updateRoom(idx, "isActive", !(room.isActive ?? true))}
+                      className={`flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-semibold transition ${
+                        (room.isActive ?? true)
+                          ? "border-emerald-400 bg-emerald-50 text-emerald-700"
+                          : "border-slate-200 bg-slate-100 text-slate-500 hover:border-slate-300"
+                      }`}>
+                      <span>{(room.isActive ?? true) ? "Room active" : "Room paused"}</span>
                     </button>
                   </div>
                   <div className="sm:col-span-3">

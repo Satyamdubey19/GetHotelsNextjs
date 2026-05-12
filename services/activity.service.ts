@@ -86,7 +86,7 @@ export async function getPublicActivityBySlug(slug: string) {
   return activity ? normalizeActivityForPublic(activity) : null
 }
 
-export type ActivityRecord = NonNullable<Awaited<ReturnType<typeof getActivityById>>>
+export type ActivityRecord = any
 
 export function normalizeActivityForForm(activity: ActivityRecord) {
   return {
@@ -104,7 +104,26 @@ export function normalizeActivityForForm(activity: ActivityRecord) {
 
 // ─── Mutations ─────────────────────────────────────────────────────────────────
 
-type PublicActivityRecord = Awaited<ReturnType<typeof prisma.activity.findMany>>[number] & {
+type PublicActivityRecord = {
+  slug: string
+  title: string
+  category: string
+  city: string
+  area: string | null
+  meetingPoint: string | null
+  images: string[]
+  imageUrl: string | null
+  price: { toString(): string } | number
+  originalPrice: { toString(): string } | number | null
+  duration: string
+  averageRating: number
+  totalReviews: number
+  availableSlots: number
+  totalSlots: number
+  language: string
+  difficulty: string
+  highlights: string[]
+  included: string[]
   Host?: { businessName: string | null; isVerified: boolean }
   ActivitySlot?: { startTime: string }[]
   _count?: { ActivityBooking: number; Review: number }

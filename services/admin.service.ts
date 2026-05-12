@@ -4,6 +4,20 @@ import type { ListQuery } from "@/utils/admin-query"
 
 type EntityType = "USER" | "HOST" | "BOOKING" | "LISTING" | "KYC" | "PAYOUT"
 type ListingType = "hotel" | "tour" | "rental" | "activity"
+type AdminListingUpdateInput = {
+  status?: string
+  reason?: string
+  isActive?: boolean
+  title?: string
+  rooms?: {
+    id?: string
+    pricePerNight?: number
+    originalPrice?: number
+    totalRooms?: number
+    availableRooms?: number
+    isActive?: boolean
+  }[]
+}
 
 function money(value: unknown) {
   return Number(value ?? 0)
@@ -359,7 +373,7 @@ export async function listAdminListings(query: ListQuery) {
   const search = normalizeQuery(query.search)
 
   const [hotels, tours, rentals, activities] = await Promise.all([
-    includeType("hotel") ? prisma.hotel.findMany({ include: { Host: { include: { User: true } }, Room: { where: { isActive: true } }, _count: { select: { Booking: true, Review: true } } } }) : [],
+    includeType("hotel") ? prisma.hotel.findMany({ include: { Host: { include: { User: true } }, Room: { orderBy: { createdAt: "asc" } }, _count: { select: { Booking: true, Review: true } } } }) : [],
     includeType("tour") ? prisma.tour.findMany({ include: { Host: { include: { User: true } }, _count: { select: { Booking: true, Review: true } } } }) : [],
     includeType("rental") ? prisma.rental.findMany({ include: { Host: { include: { User: true } }, _count: { select: { RentalBooking: true, Review: true } } } }) : [],
     includeType("activity") ? prisma.activity.findMany({ include: { Host: { include: { User: true } }, _count: { select: { ActivityBooking: true, Review: true } } } }) : [],
@@ -375,14 +389,21 @@ export async function listAdminListings(query: ListQuery) {
       status: item.status,
       isActive: item.isActive,
       isApproved: item.isApproved,
-      price: 0,
+      price: item.Room.filter((room) => room.isActive).reduce((min, room) => {
+        const price = money(room.pricePerNight)
+        return min === 0 || price < min ? price : min
+      }, 0),
       inventoryLabel: item.Room.length > 0
-        ? `${item.Room.reduce((sum, room) => sum + room.availableRooms, 0)} of ${item.Room.reduce((sum, room) => sum + room.totalRooms, 0)} rooms`
+        ? `${item.Room.filter((room) => room.isActive).reduce((sum, room) => sum + room.availableRooms, 0)} of ${item.Room.filter((room) => room.isActive).reduce((sum, room) => sum + room.totalRooms, 0)} rooms`
         : "No rooms",
       inventoryDetails: item.Room.map((room) => ({
+        id: room.id,
         label: `${room.name} (${room.type})`,
+        pricePerNight: money(room.pricePerNight),
+        originalPrice: room.originalPrice == null ? undefined : money(room.originalPrice),
         available: room.availableRooms,
         total: room.totalRooms,
+        isActive: room.isActive,
       })),
       bookings: item._count.Booking,
       reviews: item._count.Review,
@@ -502,7 +523,7 @@ export async function listAdminPosts(query: ListQuery) {
   }
 }
 
-export async function updateAdminListing(type: ListingType, id: string, admin: AdminSession, input: { status?: string; reason?: string; isActive?: boolean; title?: string }) {
+export async function updateAdminListing(type: ListingType, id: string, admin: AdminSession, input: AdminListingUpdateInput) {
   const nextStatus = input.status as "DRAFT" | "PENDING_REVIEW" | "ACTIVE" | "PAUSED" | "REJECTED" | "ARCHIVED" | undefined
   const reviewedAt = input.status ? new Date() : undefined
   const sharedData = {
@@ -522,9 +543,31 @@ export async function updateAdminListing(type: ListingType, id: string, admin: A
   }
 
   if (type === "hotel") {
-    const before = await prisma.hotel.findUnique({ where: { id } })
+    const before = await prisma.hotel.findUnique({ where: { id }, include: { Room: true } })
     if (!before) throw new Error("Listing not found")
-    const listing = await prisma.hotel.update({ where: { id }, data: approvalData })
+    const listing = await prisma.$transaction(async (tx) => {
+      if (input.rooms?.length) {
+        for (const room of input.rooms) {
+          if (!room.id || !before.Room.some((existing) => existing.id === room.id)) continue
+          const totalRooms = room.totalRooms == null ? undefined : Math.max(Math.trunc(room.totalRooms), 1)
+          const availableRooms = room.availableRooms == null
+            ? undefined
+            : Math.max(Math.trunc(room.availableRooms), 0)
+          await tx.room.update({
+            where: { id: room.id },
+            data: {
+              pricePerNight: room.pricePerNight == null ? undefined : room.pricePerNight,
+              originalPrice: room.originalPrice,
+              totalRooms,
+              availableRooms: totalRooms == null || availableRooms == null ? availableRooms : Math.min(availableRooms, totalRooms),
+              isActive: room.isActive,
+            },
+          })
+        }
+      }
+
+      return tx.hotel.update({ where: { id }, data: approvalData })
+    })
     await writeAuditLog(admin, `LISTING_${input.status ?? "UPDATED"}`, "LISTING", id, before, { ...input, type })
     return listing
   }

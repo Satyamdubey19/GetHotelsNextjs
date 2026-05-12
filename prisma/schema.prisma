@@ -4,62 +4,63 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model Activity {
-  id                    String        @id @default(uuid())
-  hostId                String
-  slug                  String        @unique
-  title                 String
-  description           String?
-  city                  String
-  state                 String?
-  country               String        @default("India")
-  area                  String?
-  category              ActivityCategory
-  difficulty            ActivityDifficulty @default(EASY)
-  price                 Decimal       @db.Decimal(10, 2)
-  originalPrice         Decimal?      @db.Decimal(10, 2)
-  duration              String
-  groupSizeMin          Int           @default(1)
-  groupSizeMax          Int           @default(20)
-  totalSlots            Int           @default(20)
-  availableSlots        Int           @default(20)
-  language              String        @default("English")
-  imageUrl              String?
-  images                String[]
-  highlights            String[]
-  included              String[]
-  excluded              String[]
-  meetingPoint          String?
-  meetingLat            Float?
-  meetingLng            Float?
-  cancellationPolicy    String?
-  status                ListingStatus @default(PENDING_REVIEW)
-  isActive              Boolean       @default(true)
-  isApproved            Boolean       @default(false)
-  averageRating         Float         @default(0)
-  totalReviews          Int           @default(0)
-  totalBookings         Int           @default(0)
+  id                   String             @id @default(uuid())
+  hostId               String
+  slug                 String             @unique
+  title                String
+  description          String?
+  city                 String
+  state                String?
+  country              String             @default("India")
+  area                 String?
+  category             ActivityCategory
+  difficulty           ActivityDifficulty @default(EASY)
+  price                Decimal            @db.Decimal(10, 2)
+  originalPrice        Decimal?           @db.Decimal(10, 2)
+  duration             String
+  groupSizeMin         Int                @default(1)
+  groupSizeMax         Int                @default(20)
+  totalSlots           Int                @default(20)
+  availableSlots       Int                @default(20)
+  language             String             @default("English")
+  imageUrl             String?
+  images               String[]
+  highlights           String[]
+  included             String[]
+  excluded             String[]
+  meetingPoint         String?
+  meetingLat           Float?
+  meetingLng           Float?
+  cancellationPolicy   String?
+  status               ListingStatus      @default(PENDING_REVIEW)
+  isActive             Boolean            @default(true)
+  isApproved           Boolean            @default(false)
+  averageRating        Float              @default(0)
+  totalReviews         Int                @default(0)
+  totalBookings        Int                @default(0)
   // Moderation fields
-  submittedForReviewAt  DateTime?
-  approvedAt            DateTime?
-  rejectedAt            DateTime?
-  archivedAt            DateTime?
-  deletedAt             DateTime?
-  reviewedAt            DateTime?
-  reviewedById          String?
-  rejectionReason       String?
-  moderationNotes       String?
-  lastReviewedStatus    ListingStatus?
-  createdAt             DateTime      @default(now())
-  updatedAt             DateTime      @updatedAt
-  Host                  Host          @relation(fields: [hostId], references: [id], onDelete: Cascade)
-  ReviewedBy            User?         @relation("ActivityReviewer", fields: [reviewedById], references: [id])
-  ActivityBooking       ActivityBooking[]
-  ActivitySlot          ActivitySlot[]
-  Review                Review[]
-  WishlistItem          WishlistItem[]
+  submittedForReviewAt DateTime?
+  approvedAt           DateTime?
+  rejectedAt           DateTime?
+  archivedAt           DateTime?
+  deletedAt            DateTime?
+  reviewedAt           DateTime?
+  reviewedById         String?
+  rejectionReason      String?
+  moderationNotes      String?
+  lastReviewedStatus   ListingStatus?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+  Host                 Host               @relation(fields: [hostId], references: [id], onDelete: Cascade)
+  ReviewedBy           User?              @relation("ActivityReviewer", fields: [reviewedById], references: [id])
+  ActivityBooking      ActivityBooking[]
+  ActivitySlot         ActivitySlot[]
+  Review               Review[]
+  WishlistItem         WishlistItem[]
 
   @@index([city, category])
   @@index([hostId])
@@ -91,7 +92,7 @@ model ActivityBooking {
   cancellationReason      String?
   cancelledAt             DateTime?
   createdAt               DateTime                  @default(now())
-  updatedAt          DateTime           @updatedAt
+  updatedAt               DateTime                  @updatedAt
   Activity                Activity                  @relation(fields: [activityId], references: [id])
   Host                    Host                      @relation(fields: [hostId], references: [id])
   ActivitySlot            ActivitySlot?             @relation(fields: [slotId], references: [id])
@@ -146,7 +147,7 @@ model ActivityPayment {
   transactionId     String?         @unique
   paidAt            DateTime?
   createdAt         DateTime        @default(now())
-  updatedAt          DateTime           @updatedAt
+  updatedAt         DateTime        @updatedAt
   ActivityBooking   ActivityBooking @relation(fields: [activityBookingId], references: [id], onDelete: Cascade)
 
   @@index([status])
@@ -161,7 +162,7 @@ model ActivitySlot {
   bookedSpots     Int               @default(0)
   isActive        Boolean           @default(true)
   createdAt       DateTime          @default(now())
-  updatedAt          DateTime           @updatedAt
+  updatedAt       DateTime          @updatedAt
   ActivityBooking ActivityBooking[]
   Activity        Activity          @relation(fields: [activityId], references: [id], onDelete: Cascade)
 
@@ -175,7 +176,7 @@ model AdminProfile {
   department  String?
   permissions Json?
   createdAt   DateTime @default(now())
-  updatedAt          DateTime           @updatedAt
+  updatedAt   DateTime @updatedAt
   User        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
@@ -213,47 +214,48 @@ model AuditLog {
 }
 
 model Booking {
-  id                 String             @id @default(uuid())
-  bookingCode        String             @unique
-  userId             String
-  hostId             String
-  hotelId            String?
-  tourId             String?
-  checkIn            DateTime?
-  checkOut           DateTime?
-  totalGuests        Int                @default(1)
-  adults             Int                @default(1)
-  children           Int                @default(0)
-  infants            Int                @default(0)
-  contactName        String
-  contactEmail       String
-  contactPhone       String
-  specialRequests    String?
-  couponId           String?
-  subtotal           Decimal            @db.Decimal(10, 2)
-  taxes              Decimal            @default(0) @db.Decimal(10, 2)
-  discount           Decimal            @default(0) @db.Decimal(10, 2)
-  totalAmount        Decimal            @db.Decimal(10, 2)
-  currency           String             @default("INR")
-  status             BookingStatus      @default(PENDING)
+  id                   String                 @id @default(uuid())
+  bookingCode          String                 @unique
+  userId               String
+  hostId               String
+  hotelId              String?
+  tourId               String?
+  checkIn              DateTime?
+  checkOut             DateTime?
+  totalGuests          Int                    @default(1)
+  adults               Int                    @default(1)
+  children             Int                    @default(0)
+  infants              Int                    @default(0)
+  contactName          String
+  contactEmail         String
+  contactPhone         String
+  specialRequests      String?
+  couponId             String?
+  TourParticipant      TourParticipant[]
+  subtotal             Decimal                @db.Decimal(10, 2)
+  taxes                Decimal                @default(0) @db.Decimal(10, 2)
+  discount             Decimal                @default(0) @db.Decimal(10, 2)
+  totalAmount          Decimal                @db.Decimal(10, 2)
+  currency             String                 @default("INR")
+  status               BookingStatus          @default(PENDING)
   // Pending bookings can expire if payment is not completed before this time.
-  expiresAt          DateTime?
-  cancellationReason String?
-  cancelledAt        DateTime?
-  createdAt          DateTime           @default(now())
-  updatedAt          DateTime           @updatedAt
-  Coupon             Coupon?            @relation(fields: [couponId], references: [id])
-  Host               Host               @relation(fields: [hostId], references: [id])
-  Hotel              Hotel?             @relation(fields: [hotelId], references: [id], onDelete: Restrict)
-  Tour               Tour?              @relation(fields: [tourId], references: [id], onDelete: Restrict)
-  User               User               @relation(fields: [userId], references: [id])
-  BookingGuest       BookingGuest[]
-  BookingRoom        BookingRoom[]
-  BookingTimeline    BookingTimeline[]
+  expiresAt            DateTime?
+  cancellationReason   String?
+  cancelledAt          DateTime?
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
+  Coupon               Coupon?                @relation(fields: [couponId], references: [id])
+  Host                 Host                   @relation(fields: [hostId], references: [id])
+  Hotel                Hotel?                 @relation(fields: [hotelId], references: [id], onDelete: Restrict)
+  Tour                 Tour?                  @relation(fields: [tourId], references: [id], onDelete: Restrict)
+  User                 User                   @relation(fields: [userId], references: [id])
+  BookingGuest         BookingGuest[]
+  BookingRoom          BookingRoom[]
+  BookingTimeline      BookingTimeline[]
   InventoryReservation InventoryReservation[]
-  CouponRedemption   CouponRedemption[]
-  Payment            Payment?
-  Review             Review?
+  CouponRedemption     CouponRedemption[]
+  Payment              Payment?
+  Review               Review?
 
   @@index([bookingCode])
   @@index([hostId])
@@ -285,26 +287,26 @@ model BookingGuest {
 }
 
 model BookingRoom {
-  id            String         @id @default(uuid())
-  bookingId     String
-  roomId        String
-  roomName      String
-  roomType      String
-  pricePerNight Decimal        @db.Decimal(10, 2)
-  originalPrice Decimal?       @db.Decimal(10, 2)
-  quantity      Int            @default(1)
-  adults        Int            @default(2)
-  children      Int            @default(0)
-  checkIn       DateTime
-  checkOut      DateTime
-  nights        Int
-  total         Decimal        @db.Decimal(10, 2)
+  id                String         @id @default(uuid())
+  bookingId         String
+  roomId            String
+  roomName          String
+  roomType          String
+  pricePerNight     Decimal        @db.Decimal(10, 2)
+  originalPrice     Decimal?       @db.Decimal(10, 2)
+  quantity          Int            @default(1)
+  adults            Int            @default(2)
+  children          Int            @default(0)
+  checkIn           DateTime
+  checkOut          DateTime
+  nights            Int
+  total             Decimal        @db.Decimal(10, 2)
   // True when this row already locked calendar inventory for the stay dates.
-  inventoryReserved Boolean    @default(false)
-  createdAt     DateTime       @default(now())
-  BookingGuest  BookingGuest[]
-  Booking       Booking        @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  Room          Room           @relation(fields: [roomId], references: [id])
+  inventoryReserved Boolean        @default(false)
+  createdAt         DateTime       @default(now())
+  BookingGuest      BookingGuest[]
+  Booking           Booking        @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  Room              Room           @relation(fields: [roomId], references: [id])
 
   @@index([bookingId])
   @@index([roomId])
@@ -339,7 +341,7 @@ model Coupon {
   expiresAt        DateTime?
   isActive         Boolean            @default(true)
   createdAt        DateTime           @default(now())
-  updatedAt          DateTime           @updatedAt
+  updatedAt        DateTime           @updatedAt
   Booking          Booking[]
   CouponRedemption CouponRedemption[]
 
@@ -421,34 +423,34 @@ model Host {
 }
 
 model Hotel {
-  id                   String        @id @default(uuid())
+  id                   String         @id @default(uuid())
   hostId               String
-  slug                 String        @unique
+  slug                 String         @unique
   title                String
   description          String
   location             String
   address              String?
   city                 String
   state                String?
-  country              String        @default("India")
+  country              String         @default("India")
   postalCode           String?
   latitude             Float?
   longitude            Float?
-  propertyType         PropertyType  @default(HOTEL)
+  propertyType         PropertyType   @default(HOTEL)
   starRating           Int?
-  checkInTime          String        @default("14:00")
-  checkOutTime         String        @default("11:00")
+  checkInTime          String         @default("14:00")
+  checkOutTime         String         @default("11:00")
   phone                String?
   email                String?
   cancellationPolicy   String?
   childPolicy          String?
   petPolicy            String?
-  status               ListingStatus @default(PENDING_REVIEW)
-  isActive             Boolean       @default(true)
-  isApproved           Boolean       @default(false)
-  averageRating        Float         @default(0)
-  totalReviews         Int           @default(0)
-  totalBookings        Int           @default(0)
+  status               ListingStatus  @default(PENDING_REVIEW)
+  isActive             Boolean        @default(true)
+  isApproved           Boolean        @default(false)
+  averageRating        Float          @default(0)
+  totalReviews         Int            @default(0)
+  totalBookings        Int            @default(0)
   // Moderation fields
   submittedForReviewAt DateTime?
   approvedAt           DateTime?
@@ -460,11 +462,11 @@ model Hotel {
   rejectionReason      String?
   moderationNotes      String?
   lastReviewedStatus   ListingStatus?
-  createdAt            DateTime      @default(now())
-  updatedAt            DateTime      @updatedAt
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
   Booking              Booking[]
-  Host                 Host          @relation(fields: [hostId], references: [id], onDelete: Cascade)
-  ReviewedBy           User?         @relation("HotelReviewer", fields: [reviewedById], references: [id])
+  Host                 Host           @relation(fields: [hostId], references: [id], onDelete: Cascade)
+  ReviewedBy           User?          @relation("HotelReviewer", fields: [reviewedById], references: [id])
   HotelAmenity         HotelAmenity[]
   HotelImage           HotelImage[]
   HotelRule            HotelRule[]
@@ -515,30 +517,30 @@ model HotelRule {
 }
 
 model KycApplication {
-  id                    String    @id @default(uuid())
-  hostId                String
-  status                KycStatus @default(PENDING)
-  firstName             String
-  lastName              String
-  dateOfBirth           DateTime?
-  nationality           String?
-  idType                String
-  idNumber              String
-  idFrontUrl            String?
-  idBackUrl             String?
-  addressProofUrl       String?
-  businessDocUrl        String?
-  submittedAt           DateTime  @default(now())
-  reviewedById          String?
-  reviewedAt            DateTime?
-  rejectionReason       String?
-  reviewNotes           String?
-  resubmissionAllowed   Boolean   @default(false)
-  resubmissionDeadline  DateTime?
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
-  Host                  Host      @relation(fields: [hostId], references: [id], onDelete: Cascade)
-  ReviewedBy            User?     @relation("KycReviewer", fields: [reviewedById], references: [id])
+  id                   String    @id @default(uuid())
+  hostId               String
+  status               KycStatus @default(PENDING)
+  firstName            String
+  lastName             String
+  dateOfBirth          DateTime?
+  nationality          String?
+  idType               String
+  idNumber             String
+  idFrontUrl           String?
+  idBackUrl            String?
+  addressProofUrl      String?
+  businessDocUrl       String?
+  submittedAt          DateTime  @default(now())
+  reviewedById         String?
+  reviewedAt           DateTime?
+  rejectionReason      String?
+  reviewNotes          String?
+  resubmissionAllowed  Boolean   @default(false)
+  resubmissionDeadline DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  Host                 Host      @relation(fields: [hostId], references: [id], onDelete: Cascade)
+  ReviewedBy           User?     @relation("KycReviewer", fields: [reviewedById], references: [id])
 
   @@index([hostId])
   @@index([status])
@@ -579,7 +581,7 @@ model Payment {
   refundedAt        DateTime?
   refundReason      String?
   createdAt         DateTime      @default(now())
-  updatedAt          DateTime           @updatedAt
+  updatedAt         DateTime      @updatedAt
   Booking           Booking       @relation(fields: [bookingId], references: [id])
   Host              Host          @relation(fields: [hostId], references: [id])
   User              User          @relation(fields: [userId], references: [id])
@@ -605,7 +607,7 @@ model Payout {
   failureReason String?
   notes         String?
   createdAt     DateTime     @default(now())
-  updatedAt          DateTime           @updatedAt
+  updatedAt     DateTime     @updatedAt
   Host          Host         @relation(fields: [hostId], references: [id])
   User          User?        @relation(fields: [processedById], references: [id])
 
@@ -622,7 +624,7 @@ model Post {
   caption     String?
   viewCount   Int           @default(0)
   createdAt   DateTime      @default(now())
-  updatedAt          DateTime           @updatedAt
+  updatedAt   DateTime      @updatedAt
   Hotel       Hotel?        @relation(fields: [hotelId], references: [id])
   Tour        Tour?         @relation(fields: [tourId], references: [id])
   User        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -638,7 +640,7 @@ model PostComment {
   userId    String
   content   String
   createdAt DateTime @default(now())
-  updatedAt          DateTime           @updatedAt
+  updatedAt DateTime @updatedAt
   Post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
   User      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -669,9 +671,9 @@ model RefreshToken {
 }
 
 model Rental {
-  id                   String        @id @default(uuid())
+  id                   String          @id @default(uuid())
   hostId               String
-  slug                 String        @unique
+  slug                 String          @unique
   title                String
   vehicleType          VehicleType
   brand                String
@@ -679,21 +681,21 @@ model Rental {
   year                 Int?
   city                 String
   state                String?
-  country              String        @default("India")
+  country              String          @default("India")
   pickupArea           String?
-  totalUnits           Int           @default(1)
-  availableUnits       Int           @default(1)
+  totalUnits           Int             @default(1)
+  availableUnits       Int             @default(1)
   imageUrl             String?
   images               String[]
-  pricePerDay          Decimal       @db.Decimal(10, 2)
-  originalPrice        Decimal?      @db.Decimal(10, 2)
+  pricePerDay          Decimal         @db.Decimal(10, 2)
+  originalPrice        Decimal?        @db.Decimal(10, 2)
   cancellationPolicy   String?
-  status               ListingStatus @default(PENDING_REVIEW)
-  isActive             Boolean       @default(true)
-  isApproved           Boolean       @default(false)
-  averageRating        Float         @default(0)
-  totalReviews         Int           @default(0)
-  totalBookings        Int           @default(0)
+  status               ListingStatus   @default(PENDING_REVIEW)
+  isActive             Boolean         @default(true)
+  isApproved           Boolean         @default(false)
+  averageRating        Float           @default(0)
+  totalReviews         Int             @default(0)
+  totalBookings        Int             @default(0)
   // Moderation fields
   submittedForReviewAt DateTime?
   approvedAt           DateTime?
@@ -705,10 +707,10 @@ model Rental {
   rejectionReason      String?
   moderationNotes      String?
   lastReviewedStatus   ListingStatus?
-  createdAt            DateTime      @default(now())
-  updatedAt            DateTime      @updatedAt
-  Host                 Host          @relation(fields: [hostId], references: [id], onDelete: Cascade)
-  ReviewedBy           User?         @relation("RentalReviewer", fields: [reviewedById], references: [id])
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+  Host                 Host            @relation(fields: [hostId], references: [id], onDelete: Cascade)
+  ReviewedBy           User?           @relation("RentalReviewer", fields: [reviewedById], references: [id])
   RentalBooking        RentalBooking[]
   RentalDetails        RentalDetails?
   Review               Review[]
@@ -746,7 +748,7 @@ model RentalBooking {
   cancellationReason    String?
   cancelledAt           DateTime?
   createdAt             DateTime                @default(now())
-  updatedAt          DateTime           @updatedAt
+  updatedAt             DateTime                @updatedAt
   Host                  Host                    @relation(fields: [hostId], references: [id])
   Rental                Rental                  @relation(fields: [rentalId], references: [id])
   User                  User                    @relation(fields: [userId], references: [id])
@@ -785,7 +787,7 @@ model RentalDetails {
   features          String[]
   documentsRequired String[]
   createdAt         DateTime          @default(now())
-  updatedAt          DateTime           @updatedAt
+  updatedAt         DateTime          @updatedAt
   Rental            Rental            @relation(fields: [rentalId], references: [id], onDelete: Cascade)
 }
 
@@ -802,7 +804,7 @@ model RentalPayment {
   transactionId     String?       @unique
   paidAt            DateTime?
   createdAt         DateTime      @default(now())
-  updatedAt          DateTime           @updatedAt
+  updatedAt         DateTime      @updatedAt
   RentalBooking     RentalBooking @relation(fields: [rentalBookingId], references: [id], onDelete: Cascade)
 
   @@index([status])
@@ -827,7 +829,7 @@ model Review {
   responseAt        DateTime?
   isPublished       Boolean          @default(true)
   createdAt         DateTime         @default(now())
-  updatedAt          DateTime           @updatedAt
+  updatedAt         DateTime         @updatedAt
   ActivityBooking   ActivityBooking? @relation(fields: [activityBookingId], references: [id])
   Activity          Activity?        @relation(fields: [activityId], references: [id])
   Booking           Booking?         @relation(fields: [bookingId], references: [id])
@@ -846,40 +848,38 @@ model Review {
 }
 
 model Room {
-  id                 String             @id @default(uuid())
-  hotelId            String
-  name               String
-  type               RoomType           @default(STANDARD)
-  description        String?
-  pricePerNight      Decimal            @db.Decimal(10, 2)
-  originalPrice      Decimal?           @db.Decimal(10, 2)
-  capacity           Int                @default(2)
-  maxAdults          Int                @default(2)
-  maxChildren        Int                @default(1)
-  baseOccupancy      Int                @default(2)
-  instantBook        Boolean            @default(false)
-  minAdvanceDays     Int                @default(0)
-  maxAdvanceDays     Int?
-  // Metadata only: real sellable inventory should come from RoomAvailability calendar rows.
-  totalRooms         Int                @default(1)
-  // Legacy summary count for quick display; do not use this alone to decide stay-date availability.
-  availableRooms     Int                @default(1)
-  bedConfiguration   String?
-  sizeSqFt           Int?
-  viewType           String?
-  smokingAllowed     Boolean            @default(false)
-  amenities          String[]
-  images             String[]
-  cancellationPolicy String?
-  isActive           Boolean            @default(true)
-  createdAt          DateTime           @default(now())
-  updatedAt          DateTime           @updatedAt
-  BookingRoom        BookingRoom[]
-  Hotel              Hotel              @relation(fields: [hotelId], references: [id], onDelete: Cascade)
-  BlackoutDate       BlackoutDate[]
+  id                   String                 @id @default(uuid())
+  hotelId              String
+  name                 String
+  type                 RoomType               @default(STANDARD)
+  description          String?
+  pricePerNight        Decimal                @db.Decimal(10, 2)
+  originalPrice        Decimal?               @db.Decimal(10, 2)
+  capacity             Int                    @default(2)
+  maxAdults            Int                    @default(2)
+  maxChildren          Int                    @default(1)
+  baseOccupancy        Int                    @default(2)
+  instantBook          Boolean                @default(false)
+  minAdvanceDays       Int                    @default(0)
+  maxAdvanceDays       Int?
+  totalRooms           Int                    @default(1)
+  availableRooms       Int                    @default(1)
+  bedConfiguration     String?
+  sizeSqFt             Int?
+  viewType             String?
+  smokingAllowed       Boolean                @default(false)
+  amenities            String[]
+  images               String[]
+  cancellationPolicy   String?
+  isActive             Boolean                @default(true)
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
+  BookingRoom          BookingRoom[]
+  Hotel                Hotel                  @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  BlackoutDate         BlackoutDate[]
   InventoryReservation InventoryReservation[]
-  RoomAvailability   RoomAvailability[]
-  SeasonalPricing    SeasonalPricing[]
+  RoomAvailability     RoomAvailability[]
+  SeasonalPricing      SeasonalPricing[]
 
   @@index([hotelId])
   @@index([hotelId, type])
@@ -891,21 +891,13 @@ model RoomAvailability {
   id                 String   @id @default(uuid())
   roomId             String
   date               DateTime @db.Date
-  // Legacy mirror kept for backward compatibility; prefer availableInventory for booking checks.
   availableCount     Int      @default(0)
-  // Total sellable units for this room type on this date.
   totalInventory     Int      @default(0)
-  // Confirmed inventory already sold for this date.
   soldInventory      Int      @default(0)
-  // Temporary holds while payment is in progress.
   reservedInventory  Int      @default(0)
-  // Computed/stored availability used by search filters and fast calendar reads.
   availableInventory Int      @default(0)
-  // Normal nightly price copied from Room so each calendar date is independently queryable.
   basePrice          Decimal  @default(0) @db.Decimal(10, 2)
-  // Optional date-level price override for yield management.
   priceOverride      Decimal? @db.Decimal(10, 2)
-  // Full close for maintenance, owner block, or manual stop-sell.
   isClosed           Boolean  @default(false)
   closedToCheckIn    Boolean  @default(false)
   closedToCheckOut   Boolean  @default(false)
@@ -971,6 +963,35 @@ model BlackoutDate {
   @@index([date])
 }
 
+enum TourStatus {
+  UPCOMING
+  ONGOING
+  COMPLETED
+  CANCELLED
+}
+
+model TravelerReport {
+  id String @id @default(uuid())
+
+  reporterId     String
+  reportedUserId String
+  tourId         String
+
+  reason  String
+  details String?
+
+  createdAt DateTime @default(now())
+
+  reporter     User @relation("Reporter", fields: [reporterId], references: [id])
+  reportedUser User @relation("ReportedUser", fields: [reportedUserId], references: [id])
+
+  Tour Tour @relation(fields: [tourId], references: [id])
+
+  @@index([tourId])
+  @@index([reporterId])
+  @@index([reportedUserId])
+}
+
 model Tour {
   id                   String         @id @default(uuid())
   hostId               String
@@ -980,10 +1001,12 @@ model Tour {
   destination          String
   city                 String?
   state                String?
+  joinApprovalRequired Boolean        @default(false)
   country              String?
   latitude             Float?
   longitude            Float?
   duration             Int
+  tourStatus           TourStatus     @default(UPCOMING)
   maxGroupSize         Int            @default(20)
   totalSlots           Int            @default(20)
   availableSlots       Int            @default(20)
@@ -991,44 +1014,68 @@ model Tour {
   originalPrice        Decimal?       @db.Decimal(10, 2)
   difficulty           TourDifficulty @default(MODERATE)
   category             String?
+  tags                 String[]
   images               String[]
   highlights           String[]
+  chatRoom             TourChatRoom?
   included             String[]
-  excluded             String[]
-  languages            String[]
-  cancellationPolicy   String?
-  status               ListingStatus  @default(PENDING_REVIEW)
-  isActive             Boolean        @default(true)
-  isApproved           Boolean        @default(false)
-  averageRating        Float          @default(0)
-  totalReviews         Int            @default(0)
-  totalBookings        Int            @default(0)
+  womenOnly            Boolean        @default(false)
+
+  safeForSoloWomen Boolean @default(false)
+
+  verifiedTravelersOnly Boolean            @default(false)
+  excluded              String[]
+  languages             String[]
+  cancellationPolicy    String?
+  status                ListingStatus      @default(PENDING_REVIEW)
+  isActive              Boolean            @default(true)
+  isApproved            Boolean            @default(false)
+  averageRating         Float              @default(0)
+  totalReviews          Int                @default(0)
+  totalBookings         Int                @default(0)
   // Moderation fields
-  submittedForReviewAt DateTime?
-  approvedAt           DateTime?
-  rejectedAt           DateTime?
-  archivedAt           DateTime?
-  deletedAt            DateTime?
-  reviewedAt           DateTime?
-  reviewedById         String?
-  rejectionReason      String?
-  moderationNotes      String?
-  lastReviewedStatus   ListingStatus?
-  createdAt            DateTime       @default(now())
-  updatedAt            DateTime       @updatedAt
-  Booking              Booking[]
-  Post                 Post[]
-  Review               Review[]
-  Host                 Host           @relation(fields: [hostId], references: [id], onDelete: Cascade)
-  ReviewedBy           User?          @relation("TourReviewer", fields: [reviewedById], references: [id])
-  TourItineraryDay     TourItineraryDay[]
-  WishlistItem         WishlistItem[]
+  submittedForReviewAt  DateTime?
+  approvedAt            DateTime?
+  rejectedAt            DateTime?
+  archivedAt            DateTime?
+  deletedAt             DateTime?
+  reviewedAt            DateTime?
+  reviewedById          String?
+  rejectionReason       String?
+  moderationNotes       String?
+  lastReviewedStatus    ListingStatus?
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+  Booking               Booking[]
+  Post                  Post[]
+  startDate             DateTime
+  endDate               DateTime
+  registrationDeadline  DateTime?
+  Review                Review[]
+  Host                  Host               @relation(fields: [hostId], references: [id], onDelete: Cascade)
+  ReviewedBy            User?              @relation("TourReviewer", fields: [reviewedById], references: [id])
+  TourItineraryDay      TourItineraryDay[]
+  TourParticipant       TourParticipant[]
+  TravelerReport        TravelerReport[]
+  TourWaitlist          TourWaitlist[]
+  WishlistItem          WishlistItem[]
 
   @@index([city])
   @@index([hostId])
   @@index([status, isActive, isApproved])
   @@index([reviewedById])
   @@index([deletedAt])
+}
+
+enum TravelStyle {
+  BACKPACKER
+  LUXURY
+  ADVENTURE
+  SOLO
+  FAMILY
+  SPIRITUAL
+  CULTURAL
+  DIGITAL_NOMAD
 }
 
 model TourItineraryDay {
@@ -1040,66 +1087,72 @@ model TourItineraryDay {
   activities  String[]
   meals       String[]
   createdAt   DateTime @default(now())
-  updatedAt          DateTime           @updatedAt
+  updatedAt   DateTime @updatedAt
   Tour        Tour     @relation(fields: [tourId], references: [id], onDelete: Cascade)
 
   @@unique([tourId, day])
 }
 
 model User {
-  id                    String             @id @default(uuid())
-  name                  String
-  email                 String             @unique
-  password              String?
-  phone                 String?            @unique
-  role                  Role               @default(USER)
-  status                AccountStatus      @default(ACTIVE)
-  isEmailVerified       Boolean            @default(false)
-  verificationToken     String?
-  verificationExpiry    DateTime?
-  resetToken            String?
-  resetTokenExpiry      DateTime?
-  provider              String             @default("credentials")
-  providerId            String?
-  lastLoginAt           DateTime?
-  createdAt             DateTime           @default(now())
-  updatedAt             DateTime           @updatedAt
+  id                 String                @id @default(uuid())
+  name               String
+  email              String                @unique
+  password           String?
+  phone              String?               @unique
+  role               Role                  @default(USER)
+  status             AccountStatus         @default(ACTIVE)
+  isEmailVerified    Boolean               @default(false)
+  verificationToken  String?
+  verificationExpiry DateTime?
+  resetToken         String?
+  resetTokenExpiry   DateTime?
+  provider           String                @default("credentials")
+  providerId         String?
+  lastLoginAt        DateTime?
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
   // Moderation fields
-  isActive              Boolean            @default(true)
-  isBanned              Boolean            @default(false)
-  moderationReason      String?
-  reviewedAt            DateTime?
-  reviewedById          String?
-  bannedAt              DateTime?
-  suspendedAt           DateTime?
-  deletedAt             DateTime?
+  isActive           Boolean               @default(true)
+  isBanned           Boolean               @default(false)
+  moderationReason   String?
+  reviewedAt         DateTime?
+  reviewedById       String?
+  bannedAt           DateTime?
+  suspendedAt        DateTime?
+  deletedAt          DateTime?
   // Relations
-  ActivityBooking       ActivityBooking[]
-  AdminProfile          AdminProfile?
-  AuditLog              AuditLog[]
-  Booking               Booking[]
-  CouponRedemption      CouponRedemption[]
-  Host                  Host?
-  Notification          Notification[]
-  Payment               Payment[]
-  Payout                Payout[]
-  Post                  Post[]
-  PostComment           PostComment[]
-  PostLike              PostLike[]
-  RefreshToken          RefreshToken[]
-  RentalBooking         RentalBooking[]
-  Review                Review[]
-  UserProfile           UserProfile?
-  WishlistItem          WishlistItem[]
-  ReviewedUsers         User[]             @relation("UserReviewer")
-  ReviewedByUser        User?              @relation("UserReviewer", fields: [reviewedById], references: [id])
-  ReviewedHosts         Host[]             @relation("HostReviewer")
-  ReviewedHotels        Hotel[]            @relation("HotelReviewer")
-  ReviewedTours         Tour[]             @relation("TourReviewer")
-  ReviewedRentals       Rental[]           @relation("RentalReviewer")
-  ReviewedActivities    Activity[]         @relation("ActivityReviewer")
-  ReviewedKyc           KycApplication[]   @relation("KycReviewer")
-  ModerationLogs        ModerationLog[]    @relation("ModerationLogAdmin")
+  ActivityBooking    ActivityBooking[]
+  AdminProfile       AdminProfile?
+  AuditLog           AuditLog[]
+  Booking            Booking[]
+  TourParticipant    TourParticipant[]
+  SentMessages       TourMessage[]
+  TravelPreferences  UserTravelPreference?
+  ReportedTravelers  TravelerReport[]      @relation("Reporter")
+  ReceivedReports    TravelerReport[]      @relation("ReportedUser")
+  CouponRedemption   CouponRedemption[]
+  Host               Host?
+  Notification       Notification[]
+  Payment            Payment[]
+  Payout             Payout[]
+  Post               Post[]
+  PostComment        PostComment[]
+  PostLike           PostLike[]
+  RefreshToken       RefreshToken[]
+  RentalBooking      RentalBooking[]
+  Review             Review[]
+  UserProfile        UserProfile?
+  WishlistItem       WishlistItem[]
+  TourWaitlist       TourWaitlist[]
+  ReviewedUsers      User[]                @relation("UserReviewer")
+  ReviewedByUser     User?                 @relation("UserReviewer", fields: [reviewedById], references: [id])
+  ReviewedHosts      Host[]                @relation("HostReviewer")
+  ReviewedHotels     Hotel[]               @relation("HotelReviewer")
+  ReviewedTours      Tour[]                @relation("TourReviewer")
+  ReviewedRentals    Rental[]              @relation("RentalReviewer")
+  ReviewedActivities Activity[]            @relation("ActivityReviewer")
+  ReviewedKyc        KycApplication[]      @relation("KycReviewer")
+  ModerationLogs     ModerationLog[]       @relation("ModerationLogAdmin")
 
   @@index([email])
   @@index([role])
@@ -1110,22 +1163,135 @@ model User {
   @@index([reviewedById])
 }
 
+enum Gender {
+  MALE
+  FEMALE
+  NON_BINARY
+  PREFER_NOT_TO_SAY
+}
+
 model UserProfile {
-  id          String    @id @default(uuid())
-  userId      String    @unique
-  avatarUrl   String?
-  bio         String?
-  dateOfBirth DateTime?
-  gender      String?
-  address     String?
-  city        String?
-  state       String?
-  country     String?
-  postalCode  String?
-  preferences Json?
-  createdAt   DateTime  @default(now())
-  updatedAt          DateTime           @updatedAt
-  User        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id           String    @id @default(uuid())
+  userId       String    @unique
+  avatarUrl    String?
+  bio          String?
+  dateOfBirth  DateTime?
+  gender       Gender?
+  address      String?
+  city         String?
+  state        String?
+  country      String?
+  postalCode   String?
+  themeSettings        Json? @map("theme")
+  notificationSettings Json? @map("notification")
+  uiSettings           Json? @map("ui")
+  preferences          Json?
+  showGender   Boolean   @default(true)
+
+  showCity Boolean @default(true)
+
+  showInstagram      Boolean      @default(false)
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+  User               User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  languages          String[]
+  interests          String[]
+  travelStyle        TravelStyle?
+  personalityType    String?
+  foodPreference     String?
+  smokingPreference  Boolean?
+  drinkingPreference Boolean?
+  sleepSchedule      String?
+  instagramHandle    String?
+  travelExperience   String?
+  // isGovernmentIdVerified Boolean @default(false)
+
+  trustScore Int @default(0)
+
+  emergencyContactName  String?
+  emergencyContactPhone String?
+
+  soloTraveler Boolean @default(false)
+
+  womenSafetyVerified Boolean @default(false)
+}
+
+model TourJoinRequest {
+  id String @id @default(uuid())
+
+  userId String
+  tourId String
+
+  introduction String?
+
+  status JoinRequestStatus @default(PENDING)
+
+  createdAt DateTime @default(now())
+}
+
+model TourChatRoom {
+  id String @id @default(uuid())
+
+  tourId String @unique
+
+  createdAt DateTime      @default(now())
+  name      String?
+  imageUrl  String?
+  Tour      Tour          @relation(fields: [tourId], references: [id])
+  messages  TourMessage[]
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  SYSTEM
+}
+
+model TourMessage {
+  id String @id @default(uuid())
+
+  roomId String
+
+  senderId String
+
+  participantId String?
+
+  message String?
+
+  imageUrl String?
+
+  messageType MessageType @default(TEXT)
+
+  createdAt DateTime @default(now())
+
+  TourChatRoom TourChatRoom @relation(fields: [roomId], references: [id])
+
+  User        User             @relation(fields: [senderId], references: [id])
+  deletedAt   DateTime?
+  isEdited    Boolean          @default(false)
+  editedAt    DateTime?
+  Participant TourParticipant? @relation(fields: [participantId], references: [id])
+}
+
+model UserTravelPreference {
+  id String @id @default(uuid())
+
+  userId String @unique
+
+  preferredAgeMin Int?
+  preferredAgeMax Int?
+
+  preferredLanguages String[]
+
+  interests String[]
+
+  likesAdventure Boolean @default(false)
+  likesNightlife Boolean @default(false)
+  likesNature    Boolean @default(false)
+
+  budgetRange String?
+
+  User User @relation(fields: [userId], references: [id])
 }
 
 model WishlistItem {
@@ -1168,6 +1334,20 @@ model ModerationLog {
   @@index([adminId])
   @@index([action])
   @@index([createdAt])
+}
+
+model TourWaitlist {
+  id String @id @default(uuid())
+
+  userId String
+  tourId String
+
+  position Int
+
+  createdAt DateTime @default(now())
+
+  User User @relation(fields: [userId], references: [id])
+  Tour Tour @relation(fields: [tourId], references: [id])
 }
 
 enum AccountStatus {
@@ -1398,4 +1578,56 @@ enum WishlistTarget {
   TOUR
   RENTAL
   ACTIVITY
+}
+
+enum TourRole {
+  HOST
+  CO_HOST
+  MEMBER
+  MODERATOR
+}
+
+enum JoinRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+model TourParticipant {
+  id String @id @default(uuid())
+
+  tourId    String
+  userId    String
+  bookingId String?
+
+  status TourParticipantStatus @default(PENDING)
+
+  joinedAt DateTime @default(now())
+
+  introMessage   String?
+  role           TourRole @default(MEMBER)
+  isVerified     Boolean  @default(false)
+  isHostApproved Boolean  @default(false)
+
+  Tour        Tour          @relation(fields: [tourId], references: [id], onDelete: Cascade)
+  User        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  Booking     Booking?      @relation(fields: [bookingId], references: [id])
+  TourMessage TourMessage[]
+  checkedInAt DateTime?
+  completedAt DateTime?
+  cancelledAt DateTime?
+
+  @@unique([tourId, userId])
+  @@index([tourId])
+  @@index([userId])
+}
+
+enum TourParticipantStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  JOINED
+  CANCELLED
+  COMPLETED
 }

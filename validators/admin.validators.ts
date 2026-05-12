@@ -15,6 +15,15 @@ function readString(body: Record<string, unknown>, key: string) {
   return typeof value === "string" ? value.trim() : undefined
 }
 
+function readNumber(value: unknown) {
+  if (typeof value === "number" && Number.isFinite(value)) return value
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? parsed : undefined
+  }
+  return undefined
+}
+
 export async function parseListingUpdate(request: Request) {
   const body = readObject(await request.json())
   const status = readString(body, "status")?.toUpperCase()
@@ -27,6 +36,19 @@ export async function parseListingUpdate(request: Request) {
     reason: readString(body, "reason"),
     isActive: typeof body.isActive === "boolean" ? body.isActive : undefined,
     title: readString(body, "title"),
+    rooms: Array.isArray(body.rooms)
+      ? body.rooms
+          .filter((room): room is Record<string, unknown> => !!room && typeof room === "object" && !Array.isArray(room))
+          .map((room) => ({
+            id: readString(room, "id"),
+            pricePerNight: readNumber(room.pricePerNight),
+            originalPrice: readNumber(room.originalPrice),
+            totalRooms: readNumber(room.totalRooms),
+            availableRooms: readNumber(room.availableRooms),
+            isActive: typeof room.isActive === "boolean" ? room.isActive : undefined,
+          }))
+          .filter((room) => room.id)
+      : undefined,
   }
 }
 

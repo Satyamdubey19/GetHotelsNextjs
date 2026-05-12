@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { usePathname } from 'next/navigation';
-import { Ban, CheckCircle2, Eye, FilePenLine, Search, Trash2 } from 'lucide-react';
+import { Ban, CheckCircle2, Eye, FilePenLine, Save, Search, Trash2 } from 'lucide-react';
 import FilterTabs from '@/components/ui/FilterTabs';
 import Input from '@/components/ui/Input';
 import Modal from '@/components/ui/Modal';
@@ -20,7 +20,7 @@ type ListingRow = {
   isApproved: boolean;
   price: number;
   inventoryLabel: string;
-  inventoryDetails: { label: string; available: number; total: number }[];
+  inventoryDetails: { id?: string; label: string; pricePerNight?: number; originalPrice?: number; available: number; total: number; isActive?: boolean }[];
   bookings: number;
   reviews: number;
   createdAt: string;
@@ -43,6 +43,7 @@ export default function AdminListingsPage() {
   const [status, setStatus] = useState('all');
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<ListingRow | null>(null);
+  const [selectedDraft, setSelectedDraft] = useState<ListingRow | null>(null);
   const [decisionReason, setDecisionReason] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -106,7 +107,20 @@ export default function AdminListingsPage() {
     },
   }[lockedType ?? 'all'];
 
-  const updateListing = async (row: ListingRow, nextStatus: string, isActive?: boolean) => {
+  const openListing = (row: ListingRow) => {
+    setSelected(row);
+    setSelectedDraft({
+      ...row,
+      inventoryDetails: row.inventoryDetails.map((item) => ({ ...item })),
+    });
+  };
+
+  const closeListing = () => {
+    setSelected(null);
+    setSelectedDraft(null);
+  };
+
+  const updateListing = async (row: ListingRow, nextStatus?: string, isActive?: boolean) => {
     setSaving(true);
     try {
       const response = await fetch(`/api/admin/listings/${row.type}/${row.id}`, {
@@ -115,6 +129,15 @@ export default function AdminListingsPage() {
         body: JSON.stringify({
           status: nextStatus,
           isActive,
+          title: selectedDraft?.title,
+          rooms: row.type === 'hotel' ? selectedDraft?.inventoryDetails.map((room) => ({
+            id: room.id,
+            pricePerNight: room.pricePerNight,
+            originalPrice: room.originalPrice,
+            totalRooms: room.total,
+            availableRooms: room.available,
+            isActive: room.isActive,
+          })) : undefined,
           reason: decisionReason.trim() || undefined,
         }),
       });
@@ -123,7 +146,7 @@ export default function AdminListingsPage() {
         throw new Error('Failed to update listing');
       }
 
-      setSelected(null);
+      closeListing();
       setDecisionReason('');
       await fetchListings();
     } catch (error) {
@@ -226,7 +249,7 @@ export default function AdminListingsPage() {
                     <td className="px-6 py-4 font-semibold text-slate-900">{row.bookings}</td>
                     <td className="px-6 py-4 font-semibold text-slate-900">{row.price ? `₹${row.price.toLocaleString('en-IN')}` : '-'}</td>
                     <td className="px-6 py-4">
-                      <button onClick={() => setSelected(row)} className="inline-flex items-center gap-2 rounded-xl border border-blue-100 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-800 transition hover:bg-blue-800 hover:text-white">
+                      <button onClick={() => openListing(row)} className="inline-flex items-center gap-2 rounded-xl border border-blue-100 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-800 transition hover:bg-blue-800 hover:text-white">
                         <Eye className="h-3.5 w-3.5" />
                         Review
                       </button>
@@ -238,21 +261,83 @@ export default function AdminListingsPage() {
           </div>
         )}
 
-        <Modal open={!!selected} onClose={() => setSelected(null)} title="Review listing" maxWidth="max-w-lg">
-          {selected ? (
+        <Modal open={!!selected} onClose={closeListing} title="Review listing" maxWidth="max-w-2xl">
+          {selected && selectedDraft ? (
             <div className="space-y-4">
               <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
-                <p className="text-lg font-bold text-slate-950">{selected.title}</p>
+                <input
+                  value={selectedDraft.title}
+                  onChange={(event) => setSelectedDraft((current) => current ? { ...current, title: event.target.value } : current)}
+                  className="w-full rounded-xl border border-blue-100 bg-white px-3 py-2 text-lg font-bold text-slate-950 outline-none transition focus:border-blue-400"
+                />
                 <p className="mt-1 text-sm text-slate-600">{selected.type} by {selected.ownerName}</p>
                 <div className="mt-3"><StatusBadge status={selected.status} /></div>
               </div>
               <div className="rounded-2xl border border-slate-200 bg-white p-4">
                 <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-500">Host availability</p>
                 <div className="mt-3 space-y-2">
-                  {selected.inventoryDetails.map((item) => (
-                    <div key={item.label} className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2 text-sm">
-                      <span className="font-medium text-slate-700">{item.label}</span>
-                      <span className="font-bold text-slate-950">{item.available} / {item.total}</span>
+                  {selectedDraft.inventoryDetails.map((item, index) => (
+                    <div key={item.id ?? item.label} className="rounded-xl bg-slate-50 p-3 text-sm">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="font-medium text-slate-700">{item.label}</span>
+                        <label className="flex items-center gap-2 text-xs font-semibold text-slate-600">
+                          <input
+                            type="checkbox"
+                            checked={item.isActive ?? true}
+                            onChange={(event) => setSelectedDraft((current) => current ? {
+                              ...current,
+                              inventoryDetails: current.inventoryDetails.map((room, roomIndex) => roomIndex === index ? { ...room, isActive: event.target.checked } : room),
+                            } : current)}
+                          />
+                          Active
+                        </label>
+                      </div>
+                      {selected.type === 'hotel' ? (
+                        <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                          <label className="text-xs font-semibold text-slate-600">
+                            Price
+                            <input
+                              type="number"
+                              min="0"
+                              value={item.pricePerNight ?? 0}
+                              onChange={(event) => setSelectedDraft((current) => current ? {
+                                ...current,
+                                inventoryDetails: current.inventoryDetails.map((room, roomIndex) => roomIndex === index ? { ...room, pricePerNight: Number(event.target.value) } : room),
+                              } : current)}
+                              className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-bold text-slate-950 outline-none focus:border-blue-400"
+                            />
+                          </label>
+                          <label className="text-xs font-semibold text-slate-600">
+                            Available
+                            <input
+                              type="number"
+                              min="0"
+                              max={item.total}
+                              value={item.available}
+                              onChange={(event) => setSelectedDraft((current) => current ? {
+                                ...current,
+                                inventoryDetails: current.inventoryDetails.map((room, roomIndex) => roomIndex === index ? { ...room, available: Number(event.target.value) } : room),
+                              } : current)}
+                              className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-bold text-slate-950 outline-none focus:border-blue-400"
+                            />
+                          </label>
+                          <label className="text-xs font-semibold text-slate-600">
+                            Total
+                            <input
+                              type="number"
+                              min="1"
+                              value={item.total}
+                              onChange={(event) => setSelectedDraft((current) => current ? {
+                                ...current,
+                                inventoryDetails: current.inventoryDetails.map((room, roomIndex) => roomIndex === index ? { ...room, total: Number(event.target.value) } : room),
+                              } : current)}
+                              className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-bold text-slate-950 outline-none focus:border-blue-400"
+                            />
+                          </label>
+                        </div>
+                      ) : (
+                        <p className="mt-2 font-bold text-slate-950">{item.available} / {item.total}</p>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -279,6 +364,10 @@ export default function AdminListingsPage() {
                 <button disabled={saving} onClick={() => updateListing(selected, 'ARCHIVED', false)} className="inline-flex items-center justify-center gap-2 rounded-2xl border border-blue-200 bg-white px-4 py-3 text-sm font-semibold text-blue-800 transition hover:bg-blue-50 disabled:opacity-50">
                   <Trash2 className="h-4 w-4" />
                   Soft delete
+                </button>
+                <button disabled={saving} onClick={() => updateListing(selected)} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-50 sm:col-span-2">
+                  <Save className="h-4 w-4" />
+                  Save details
                 </button>
               </div>
             </div>

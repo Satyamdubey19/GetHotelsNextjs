@@ -1,7 +1,25 @@
 import { Prisma } from "@prisma/client"
 import { prisma } from "@/lib/prisma"
 
-type DbClient = typeof prisma | Prisma.TransactionClient
+type DbClient = any
+
+type CalendarRow = {
+  date: Date
+  availableInventory: number
+  availableCount: number
+  priceOverride: { toString(): string } | number | null
+  basePrice: { toString(): string } | number
+  isClosed: boolean
+  closedToCheckIn: boolean
+  closedToCheckOut: boolean
+  minStay: number | null
+  maxStay: number | null
+}
+
+type BlackoutRow = {
+  date: Date
+  reason: string | null
+}
 
 export type AvailabilityInput = {
   roomId: string
@@ -24,6 +42,20 @@ export function parseStayDate(value: string) {
   return date
 }
 
+export function getTodayStayDate() {
+  const parts = new Intl.DateTimeFormat("en-IN", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date())
+  const year = parts.find((part) => part.type === "year")?.value
+  const month = parts.find((part) => part.type === "month")?.value
+  const day = parts.find((part) => part.type === "day")?.value
+  if (!year || !month || !day) return parseStayDate(new Date().toISOString().slice(0, 10))
+  return parseStayDate(`${year}-${month}-${day}`)
+}
+
 export function enumerateStayDates(checkIn: Date, checkOut: Date) {
   const dates: Date[] = []
   const cursor = new Date(checkIn)
@@ -40,6 +72,57 @@ function dateKey(date: Date) {
   return date.toISOString().slice(0, 10)
 }
 
+function addStayDays(date: Date, days: number) {
+  const next = new Date(date)
+  next.setUTCDate(next.getUTCDate() + days)
+  return next
+}
+
+export type RoomAvailabilityCalendarInput = {
+  roomId: string
+  totalInventory: number
+  availableInventory?: number
+  basePrice: number
+  startDate?: Date
+  endDate?: Date
+  days?: number
+  isClosed?: boolean
+}
+
+export async function createRoomAvailabilityCalendar(
+  input: RoomAvailabilityCalendarInput,
+  db: DbClient = prisma,
+) {
+  const startDate = input.startDate ?? getTodayStayDate()
+  const endDate = input.endDate ?? addStayDays(startDate, input.days ?? 365)
+  const totalInventory = Math.max(Math.trunc(input.totalInventory), 0)
+  const availableInventory = Math.min(
+    Math.max(Math.trunc(input.availableInventory ?? totalInventory), 0),
+    totalInventory,
+  )
+  const basePrice = Math.max(input.basePrice, 0)
+  const dates = enumerateStayDates(startDate, endDate)
+
+  if (dates.length === 0) return { count: 0 }
+
+  return db.roomAvailability.createMany({
+    data: dates.map((date) => ({
+      roomId: input.roomId,
+      date,
+      totalInventory,
+      soldInventory: 0,
+      reservedInventory: 0,
+      availableInventory,
+      availableCount: availableInventory,
+      basePrice,
+      isClosed: input.isClosed ?? false,
+      closedToCheckIn: false,
+      closedToCheckOut: false,
+    })),
+    skipDuplicates: true,
+  })
+}
+
 export async function checkRoomAvailability(
   input: AvailabilityInput,
   db: DbClient = prisma,
@@ -47,6 +130,11 @@ export async function checkRoomAvailability(
   const stayDates = enumerateStayDates(input.checkIn, input.checkOut)
   if (stayDates.length === 0) {
     return { available: false, nights: 0, minAvailable: 0, subtotal: 0, reason: "Check-out must be after check-in" }
+  }
+
+  const today = getTodayStayDate()
+  if (input.checkIn < today) {
+    return { available: false, nights: stayDates.length, minAvailable: 0, subtotal: 0, reason: "Check-in date cannot be in the past" }
   }
 
   const room = await db.room.findFirst({
@@ -64,7 +152,6 @@ export async function checkRoomAvailability(
     return { available: false, nights: stayDates.length, minAvailable: 0, subtotal: 0, reason: "Room not found" }
   }
 
-  const today = parseStayDate(new Date().toISOString().slice(0, 10))
   const daysUntilCheckIn = Math.floor((input.checkIn.getTime() - today.getTime()) / 86400000)
   if (daysUntilCheckIn < room.minAdvanceDays) {
     return { available: false, nights: stayDates.length, minAvailable: 0, subtotal: 0, reason: "Booking is too close to check-in" }
@@ -100,7 +187,7 @@ export async function checkRoomAvailability(
       },
       select: { date: true, reason: true },
     }),
-  ])
+  ]) as [CalendarRow[], BlackoutRow[]]
 
   if (blackoutRows.length > 0) {
     return {
@@ -163,7 +250,7 @@ export async function checkRoomAvailability(
 
 export async function reserveRoomInventory(
   input: AvailabilityInput,
-  db: Prisma.TransactionClient,
+  db: DbClient,
 ) {
   const stayDates = enumerateStayDates(input.checkIn, input.checkOut)
 
@@ -190,7 +277,7 @@ export async function reserveRoomInventory(
 
 export async function releaseReservedRoomInventory(
   input: AvailabilityInput,
-  db: Prisma.TransactionClient,
+  db: DbClient,
 ) {
   const stayDates = enumerateStayDates(input.checkIn, input.checkOut)
 

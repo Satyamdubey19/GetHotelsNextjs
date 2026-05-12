@@ -1,4 +1,4 @@
-import { parseStayDate } from "@/services/availability.service"
+import { getTodayStayDate, parseStayDate } from "@/services/availability.service"
 
 function readJsonObject(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
@@ -59,6 +59,11 @@ export async function parseCreateHotelBooking(request: Request): Promise<CreateH
   const body = readJsonObject(await request.json())
   const checkIn = parseStayDate(readString(body, "checkIn"))
   const checkOut = parseStayDate(readString(body, "checkOut"))
+  const today = getTodayStayDate()
+
+  if (checkIn < today) {
+    throw new Error("'checkIn' cannot be in the past")
+  }
 
   if (checkOut <= checkIn) {
     throw new Error("'checkOut' must be after 'checkIn'")

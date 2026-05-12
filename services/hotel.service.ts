@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma"
+import { createRoomAvailabilityCalendar } from "@/services/availability.service"
 import type { RoomType, PropertyType, ListingStatus } from "@prisma/client"
 
 
@@ -24,9 +25,11 @@ export type HotelInput = {
   petPolicy?: string
   childPolicy?: string
   status?: string
+  isActive?: boolean
 }
 
 export type RoomInput = {
+  id?: string
   name: string
   type?: string
   description?: string
@@ -44,6 +47,7 @@ export type RoomInput = {
   amenities?: string[]
   images?: string[]
   cancellationPolicy?: string
+  isActive?: boolean
 }
 
 
@@ -57,7 +61,7 @@ export async function listHotels(hostId: string) {
     where: { hostId },
     include: {
       HotelImage: { orderBy: { sortOrder: "asc" } },
-      Room: { where: { isActive: true } },
+      Room: { orderBy: { createdAt: "asc" } },
       HotelAmenity: { include: { Amenity: true } },
       _count: { select: { Booking: true, Review: true } },
     },
@@ -71,13 +75,13 @@ export async function getHotelById(id: string, hostId: string) {
     include: {
       HotelImage: { orderBy: { sortOrder: "asc" } },
       HotelRule: true,
-      Room: { where: { isActive: true } },
+      Room: { orderBy: { createdAt: "asc" } },
       HotelAmenity: { include: { Amenity: true } },
     },
   })
 }
 
-export type HotelWithRelations = NonNullable<Awaited<ReturnType<typeof getHotelById>>>
+export type HotelWithRelations = any
 
 export function normalizeHotelForForm(hotel: HotelWithRelations) {
   return {
@@ -99,6 +103,7 @@ export function normalizeHotelForForm(hotel: HotelWithRelations) {
       maxAdults: String(room.maxAdults),
       maxChildren: String(room.maxChildren),
       totalRooms: String(room.totalRooms),
+      availableRooms: String(room.availableRooms),
       bedConfiguration: room.bedConfiguration ?? "",
       sizeSqFt: room.sizeSqFt != null ? String(room.sizeSqFt) : "",
       viewType: room.viewType ?? "",
@@ -106,6 +111,7 @@ export function normalizeHotelForForm(hotel: HotelWithRelations) {
       amenities: room.amenities,
       images: room.images,
       cancellationPolicy: room.cancellationPolicy ?? "",
+      isActive: room.isActive,
     })),
   }
 }
@@ -120,38 +126,42 @@ function cleanStringList(values: string[], dedupe = false) {
   return dedupe ? Array.from(new Set(cleaned)) : cleaned
 }
 
+function normalizeRoomRow(hotelId: string, room: RoomInput) {
+  const totalRooms = Math.max(parseInt(room.totalRooms ?? "1") || 1, 1)
+  const parsedAvailable = parseInt(room.availableRooms ?? String(totalRooms))
+  const availableRooms = Math.min(Math.max(Number.isFinite(parsedAvailable) ? parsedAvailable : totalRooms, 0), totalRooms)
+
+  return {
+    hotelId,
+    name: room.name.trim(),
+    type: (room.type || "STANDARD") as RoomType,
+    description: room.description || null,
+    pricePerNight: parseFloat(room.pricePerNight) || 0,
+    originalPrice: room.originalPrice ? parseFloat(room.originalPrice) : null,
+    capacity: parseInt(room.capacity ?? "2") || 2,
+    maxAdults: parseInt(room.maxAdults ?? "2") || 2,
+    maxChildren: parseInt(room.maxChildren ?? "1") || 1,
+    totalRooms,
+    availableRooms,
+    bedConfiguration: room.bedConfiguration || null,
+    sizeSqFt: room.sizeSqFt ? parseInt(room.sizeSqFt) : null,
+    viewType: room.viewType || null,
+    smokingAllowed: Boolean(room.smokingAllowed),
+    amenities: room.amenities || [],
+    images: room.images || [],
+    cancellationPolicy: room.cancellationPolicy || null,
+    isActive: room.isActive ?? true,
+  }
+}
+
 function buildRoomRows(hotelId: string, rooms: RoomInput[]) {
   return rooms
     .filter((room) => room.name?.trim())
-    .map((room) => {
-      const totalRooms = parseInt(room.totalRooms ?? "1") || 1
-      const availableRooms = Math.min(parseInt(room.availableRooms ?? String(totalRooms)) || totalRooms, totalRooms)
-
-      return {
-      hotelId,
-      name: room.name.trim(),
-      type: (room.type || "STANDARD") as RoomType,
-      description: room.description || null,
-      pricePerNight: parseFloat(room.pricePerNight) || 0,
-      originalPrice: room.originalPrice ? parseFloat(room.originalPrice) : null,
-      capacity: parseInt(room.capacity ?? "2") || 2,
-      maxAdults: parseInt(room.maxAdults ?? "2") || 2,
-      maxChildren: parseInt(room.maxChildren ?? "1") || 1,
-      totalRooms,
-      availableRooms,
-      bedConfiguration: room.bedConfiguration || null,
-      sizeSqFt: room.sizeSqFt ? parseInt(room.sizeSqFt) : null,
-      viewType: room.viewType || null,
-      smokingAllowed: Boolean(room.smokingAllowed),
-      amenities: room.amenities || [],
-      images: room.images || [],
-      cancellationPolicy: room.cancellationPolicy || null,
-      }
-    })
+    .map((room) => normalizeRoomRow(hotelId, room))
 }
 
 async function syncHotelDetails(
-  tx: Omit<typeof prisma, "$connect" | "$disconnect" | "$on" | "$transaction" | "$use" | "$extends">,
+  tx: any,
   hotelId: string,
   amenities: string[],
   rules: string[],
@@ -200,8 +210,80 @@ async function syncHotelDetails(
   }
 
   if (roomRows.length > 0) {
-    await tx.room.createMany({ data: roomRows })
+    for (const room of roomRows) {
+      const created = await tx.room.create({ data: room })
+      await createRoomAvailabilityCalendar({
+        roomId: created.id,
+        totalInventory: created.totalRooms,
+        availableInventory: created.availableRooms,
+        basePrice: Number(created.pricePerNight),
+      }, tx)
+    }
   }
+}
+
+async function syncRoomsForUpdate(
+  tx: any,
+  hotelId: string,
+  rooms: RoomInput[],
+) {
+  const cleanedRooms = rooms.filter((room) => room.name?.trim())
+  const existingRooms = await tx.room.findMany({
+    where: { hotelId },
+    select: { id: true },
+  })
+  const existingIds = new Set(existingRooms.map((room) => room.id))
+  const keptIds = new Set<string>()
+
+  for (const room of cleanedRooms) {
+    const row = normalizeRoomRow(hotelId, room)
+    if (room.id && existingIds.has(room.id)) {
+      keptIds.add(room.id)
+      await tx.room.update({
+        where: { id: room.id },
+        data: {
+          name: row.name,
+          type: row.type,
+          description: row.description,
+          pricePerNight: row.pricePerNight,
+          originalPrice: row.originalPrice,
+          capacity: row.capacity,
+          maxAdults: row.maxAdults,
+          maxChildren: row.maxChildren,
+          totalRooms: row.totalRooms,
+          availableRooms: row.availableRooms,
+          bedConfiguration: row.bedConfiguration,
+          sizeSqFt: row.sizeSqFt,
+          viewType: row.viewType,
+          smokingAllowed: row.smokingAllowed,
+          amenities: row.amenities,
+          images: row.images,
+          cancellationPolicy: row.cancellationPolicy,
+          isActive: row.isActive,
+        },
+      })
+      await createRoomAvailabilityCalendar({
+        roomId: room.id,
+        totalInventory: row.totalRooms,
+        availableInventory: row.availableRooms,
+        basePrice: row.pricePerNight,
+      }, tx)
+    } else {
+      const created = await tx.room.create({ data: row })
+      keptIds.add(created.id)
+      await createRoomAvailabilityCalendar({
+        roomId: created.id,
+        totalInventory: created.totalRooms,
+        availableInventory: created.availableRooms,
+        basePrice: Number(created.pricePerNight),
+      }, tx)
+    }
+  }
+
+  await tx.room.updateMany({
+    where: { hotelId, id: { notIn: Array.from(keptIds) } },
+    data: { isActive: false, availableRooms: 0 },
+  })
 }
 
 
@@ -268,6 +350,8 @@ export async function updateHotel(
 ) {
   return prisma.$transaction(async (tx) => {
     const submittedAt = new Date()
+    const isActive = hotelData.isActive ?? true
+    const status = isActive ? ("PENDING_REVIEW" as ListingStatus) : ("PAUSED" as ListingStatus)
     await tx.hotel.update({
       where: { id },
       data: {
@@ -291,9 +375,9 @@ export async function updateHotel(
         cancellationPolicy: hotelData.cancellationPolicy || null,
         petPolicy: hotelData.petPolicy || null,
         childPolicy: hotelData.childPolicy || null,
-        status: "PENDING_REVIEW" as ListingStatus,
+        status,
         isApproved: false,
-        isActive: true,
+        isActive,
         submittedForReviewAt: submittedAt,
         approvedAt: null,
         rejectedAt: null,
@@ -307,9 +391,9 @@ export async function updateHotel(
     await tx.hotelAmenity.deleteMany({ where: { hotelId: id } })
     await tx.hotelRule.deleteMany({ where: { hotelId: id } })
     await tx.hotelImage.deleteMany({ where: { hotelId: id } })
-    await tx.room.deleteMany({ where: { hotelId: id } })
 
-    await syncHotelDetails(tx, id, amenities, rules, images, rooms)
+    await syncHotelDetails(tx, id, amenities, rules, images, [])
+    await syncRoomsForUpdate(tx, id, rooms)
   }, HOTEL_TRANSACTION_OPTIONS)
 }
 
@@ -337,7 +421,7 @@ const PUBLIC_HOTEL_INCLUDE = {
   _count: { select: { Booking: true, Review: true } },
 }
 
-type HotelTransaction = Omit<typeof prisma, "$connect" | "$disconnect" | "$on" | "$transaction" | "$use" | "$extends">
+type HotelTransaction = any
 
 export type HotelDateRange = {
   checkIn?: string | null
@@ -383,7 +467,7 @@ export async function getRoomAvailabilityByDate(
   const rooms = await db.room.findMany({
     where: { id: { in: roomIds }, isActive: true },
     select: { id: true, totalRooms: true },
-  })
+  }) as { id: string; totalRooms: number }[]
   const totals = new Map(rooms.map((room) => [room.id, room.totalRooms]))
 
   const [bookedRooms, overrides] = await Promise.all([
@@ -403,7 +487,10 @@ export async function getRoomAvailabilityByDate(
       },
       select: { roomId: true, date: true, availableCount: true },
     }),
-  ])
+  ]) as [
+    { roomId: string; quantity: number; checkIn: Date; checkOut: Date }[],
+    { roomId: string; date: Date; availableCount: number }[],
+  ]
 
   const overrideByRoomDate = new Map<string, number>()
   for (const override of overrides) {
@@ -467,7 +554,10 @@ export async function getAllHotels() {
 
 export async function getPublicHotelById(id: string, range?: HotelDateRange) {
   const hotel = await prisma.hotel.findFirst({
-    where: { id, ...PUBLIC_WHERE },
+    where: {
+      ...PUBLIC_WHERE,
+      OR: [{ id }, { slug: id }],
+    },
     include: PUBLIC_HOTEL_INCLUDE,
   })
   return withRoomAvailability(hotel, range)
@@ -475,7 +565,10 @@ export async function getPublicHotelById(id: string, range?: HotelDateRange) {
 
 export async function getPublicHotelBySlug(slug: string, range?: HotelDateRange) {
   const hotel = await prisma.hotel.findFirst({
-    where: { slug, ...PUBLIC_WHERE },
+    where: {
+      ...PUBLIC_WHERE,
+      OR: [{ slug }, { id: slug }],
+    },
     include: PUBLIC_HOTEL_INCLUDE,
   })
   return withRoomAvailability(hotel, range)

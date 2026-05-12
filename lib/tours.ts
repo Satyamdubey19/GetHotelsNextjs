@@ -15,6 +15,12 @@ export type Tour = {
   duration: number; // in days
   price: number;
   groupSize: string;
+  availableSlots?: number;
+  totalSlots?: number;
+  joinApprovalRequired?: boolean;
+  womenOnly?: boolean;
+  safeForSoloWomen?: boolean;
+  verifiedTravelersOnly?: boolean;
   rating: number;
   reviews: number;
   image: string;

@@ -84,7 +84,7 @@ export async function getPublicRentalBySlug(slug: string) {
   return rental ? normalizeRentalForPublic(rental) : null
 }
 
-export type RentalWithRelations = NonNullable<Awaited<ReturnType<typeof getRentalById>>>
+export type RentalWithRelations = any
 
 export function normalizeRentalForForm(rental: RentalWithRelations) {
   return {
@@ -105,7 +105,22 @@ export function normalizeRentalForForm(rental: RentalWithRelations) {
   }
 }
 
-type PublicRentalRecord = Awaited<ReturnType<typeof prisma.rental.findMany>>[number] & {
+type PublicRentalRecord = {
+  slug: string
+  vehicleType: string
+  title: string
+  brand: string
+  city: string
+  pickupArea: string | null
+  images: string[]
+  imageUrl: string | null
+  pricePerDay: { toString(): string } | number
+  originalPrice: { toString(): string } | number | null
+  averageRating: number
+  totalReviews: number
+  availableUnits: number
+  totalUnits: number
+  cancellationPolicy: string | null
   Host?: { businessName: string | null; isVerified: boolean }
   RentalDetails?: {
     transmission: TransmissionType | null

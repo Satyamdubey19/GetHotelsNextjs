@@ -1,5 +1,6 @@
 import { Prisma } from "@prisma/client"
 import { prisma } from "@/lib/prisma"
+import { sendBookingConfirmationEmail } from "@/lib/mail"
 import {
   checkRoomAvailability,
   releaseReservedRoomInventory,
@@ -10,6 +11,7 @@ import type { CreateHotelBookingInput } from "@/validators/booking.validators"
 
 const TAX_RATE = 0.12
 const HOLD_MINUTES = 15
+const PLATFORM_FEE_RATE = 0.1
 
 function generateBookingCode() {
   const timestamp = Date.now().toString(36).toUpperCase()
@@ -25,9 +27,10 @@ export async function getBookingById(id: string) {
   return prisma.booking.findUnique({
     where: { id },
     include: {
-      Hotel: { select: { id: true, title: true, city: true } },
-      BookingRoom: { include: { Room: { select: { id: true, name: true } } } },
+      Hotel: { select: { id: true, title: true, city: true, slug: true } },
+      BookingRoom: { include: { Room: { select: { id: true, name: true, pricePerNight: true } } } },
       BookingTimeline: { orderBy: { createdAt: "asc" } },
+      InventoryReservation: true,
       Payment: true,
     },
   })
@@ -37,8 +40,8 @@ export async function listBookingsForUser(userId: string) {
   return prisma.booking.findMany({
     where: { userId },
     include: {
-      Hotel: { select: { id: true, title: true, city: true } },
-      BookingRoom: { include: { Room: { select: { id: true, name: true } } } },
+      Hotel: { select: { id: true, title: true, city: true, slug: true } },
+      BookingRoom: { include: { Room: { select: { id: true, name: true, pricePerNight: true } } } },
       Payment: { select: { status: true } },
     },
     orderBy: { createdAt: "desc" },
@@ -46,7 +49,7 @@ export async function listBookingsForUser(userId: string) {
 }
 
 export async function createHotelBooking(userId: string, input: CreateHotelBookingInput) {
-  return prisma.$transaction(async (tx) => {
+  const booking = await prisma.$transaction(async (tx) => {
     const room = await tx.room.findFirst({
       where: {
         id: input.roomId,
@@ -59,10 +62,12 @@ export async function createHotelBooking(userId: string, input: CreateHotelBooki
           deletedAt: null,
         },
       },
-      include: { Hotel: { select: { id: true, hostId: true, title: true } } },
+      include: {
+        Hotel: { select: { id: true, hostId: true, title: true, city: true } },
+      },
     })
 
-    if (!room) throw new Error("Room not found")
+    if (!room) throw new Error("Room not found or hotel is not available for booking")
     if (input.adults > room.maxAdults || input.children > room.maxChildren) {
       throw new Error("Guest count exceeds room capacity")
     }
@@ -81,10 +86,12 @@ export async function createHotelBooking(userId: string, input: CreateHotelBooki
 
     const taxes = toMoney(quote.subtotal * TAX_RATE)
     const totalAmount = toMoney(quote.subtotal + taxes)
+    const platformFee = toMoney(totalAmount * PLATFORM_FEE_RATE)
+    const hostEarnings = toMoney(totalAmount - platformFee)
     const expiresAt = new Date(Date.now() + HOLD_MINUTES * 60 * 1000)
     const bookingCode = generateBookingCode()
 
-    const booking = await tx.booking.create({
+    return tx.booking.create({
       data: {
         bookingCode,
         userId,
@@ -104,6 +111,7 @@ export async function createHotelBooking(userId: string, input: CreateHotelBooki
         taxes: new Prisma.Decimal(taxes),
         discount: new Prisma.Decimal(0),
         totalAmount: new Prisma.Decimal(totalAmount),
+        currency: "INR",
         status: "PENDING",
         expiresAt,
         BookingRoom: {
@@ -138,8 +146,10 @@ export async function createHotelBooking(userId: string, input: CreateHotelBooki
             userId,
             hostId: room.Hotel.hostId,
             amount: new Prisma.Decimal(totalAmount),
-            hostEarnings: new Prisma.Decimal(toMoney(totalAmount * 0.9)),
-            platformFee: new Prisma.Decimal(toMoney(totalAmount * 0.1)),
+            hostEarnings: new Prisma.Decimal(hostEarnings),
+            platformFee: new Prisma.Decimal(platformFee),
+            currency: "INR",
+            provider: "razorpay",
             status: "PENDING",
           },
         },
@@ -148,27 +158,49 @@ export async function createHotelBooking(userId: string, input: CreateHotelBooki
             type: "CREATED",
             title: "Booking hold created",
             message: `Inventory reserved for ${HOLD_MINUTES} minutes while payment is pending.`,
-            metadata: { roomId: room.id, quantity: input.quantity },
+            metadata: { roomId: room.id, quantity: input.quantity, hotel: room.Hotel.title },
           },
         },
       },
       include: {
         Hotel: { select: { id: true, title: true, city: true } },
         BookingRoom: true,
-        Payment: true,
         InventoryReservation: true,
+        Payment: true,
       },
     })
-
-    return booking
   }, {
     isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
     maxWait: 10000,
     timeout: 20000,
   })
+
+  await sendBookingConfirmationEmail({
+    to: booking.contactEmail,
+    guestName: booking.contactName,
+    bookingCode: booking.bookingCode,
+    hotelName: booking.Hotel?.title ?? "GetHotels stay",
+    city: booking.Hotel?.city,
+    checkIn: booking.checkIn ?? input.checkIn,
+    checkOut: booking.checkOut ?? input.checkOut,
+    totalAmount: booking.totalAmount,
+    currency: booking.currency,
+    rooms: booking.BookingRoom.map((room) => ({
+      roomName: room.roomName,
+      quantity: room.quantity,
+      nights: room.nights,
+      pricePerNight: room.pricePerNight,
+      total: room.total,
+    })),
+    bookingUrl: `${process.env.NEXTAUTH_URL ?? "http://localhost:3000"}/profile`,
+  }).catch((error) => {
+    console.error("Failed to send booking confirmation email:", error)
+  })
+
+  return booking
 }
 
-export async function cancelHotelBooking(userId: string, id: string) {
+export async function cancelHotelBooking(userId: string, id: string, reason = "Cancelled by guest") {
   return prisma.$transaction(async (tx) => {
     const booking = await tx.booking.findFirst({
       where: { id, userId },
@@ -212,17 +244,17 @@ export async function cancelHotelBooking(userId: string, id: string) {
         data: {
           status: booking.Payment.status === "SUCCESS" ? "REFUNDED" : "FAILED",
           refundedAt: booking.Payment.status === "SUCCESS" ? new Date() : null,
-          refundReason: booking.Payment.status === "SUCCESS" ? "Booking cancelled by guest" : null,
+          refundReason: booking.Payment.status === "SUCCESS" ? reason : null,
         },
       })
     }
 
-    const cancelled = await tx.booking.update({
+    return tx.booking.update({
       where: { id: booking.id },
       data: {
         status: "CANCELLED",
         cancelledAt: new Date(),
-        cancellationReason: "Cancelled by guest",
+        cancellationReason: reason,
         BookingTimeline: {
           create: {
             type: "CANCELLED",
@@ -237,8 +269,6 @@ export async function cancelHotelBooking(userId: string, id: string) {
         Payment: true,
       },
     })
-
-    return cancelled
   }, {
     isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
     maxWait: 10000,

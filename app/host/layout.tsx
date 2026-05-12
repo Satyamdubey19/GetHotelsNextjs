@@ -148,7 +148,7 @@ export default function HostLayout({
   }
 
   return (
-    <div className="flex h-screen bg-slate-100">
+    <div className="flex h-dvh bg-slate-100">
       {/* Mobile Sidebar Overlay */}
       {sidebarOpen && (
         <div className="fixed inset-0 bg-black/40 z-40 md:hidden" onClick={() => setSidebarOpen(false)} />
@@ -158,9 +158,9 @@ export default function HostLayout({
       <aside
         className={`${
           sidebarOpen ? "w-64 translate-x-0" : "w-20 -translate-x-full md:translate-x-0"
-        } fixed md:static inset-y-0 left-0 z-50 flex flex-col overflow-hidden bg-[linear-gradient(180deg,#020617_0%,#0f172a_45%,#111827_100%)] text-white transition-all duration-300`}
+        } fixed md:static inset-y-0 left-0 z-50 flex h-dvh flex-col overflow-hidden bg-[linear-gradient(180deg,#020617_0%,#0f172a_45%,#111827_100%)] text-white transition-all duration-300`}
       >
-        <div className="p-6">
+        <div className="shrink-0 p-5">
           <Link href="/host" className="flex items-center gap-3 text-2xl font-bold">
             <span className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/8 text-cyan-300 shadow-[0_10px_30px_rgba(34,211,238,0.16)]">
               <HostHomeIcon className="h-5 w-5" />
@@ -174,11 +174,11 @@ export default function HostLayout({
           </Link>
         </div>
 
-        <nav className="flex-1 space-y-2 overflow-y-auto px-4">
+        <nav className="min-h-0 flex-1 space-y-1.5 overflow-y-auto px-4 pb-3 [scrollbar-width:thin] [scrollbar-color:rgba(148,163,184,0.45)_transparent]">
           <NavLink href="/host" icon={<DashboardIcon className="h-5 w-5" />} label="Dashboard" open={sidebarOpen} active={pathname === "/host"} />
           <NavLink href="/host/kyc" icon={<ShieldCheckIcon className="h-5 w-5" />} label="KYC" open={sidebarOpen} active={pathname.startsWith("/host/kyc")} />
           <NavLink href="/host/hotels/new" icon={<BuildingIcon className="h-5 w-5" />} label="Add Hotel" open={sidebarOpen} active={pathname.startsWith("/host/hotels")} />
-          <NavLink href="/host/tours/new" icon={<CompassIcon className="h-5 w-5" />} label="Add Tour" open={sidebarOpen} active={pathname.startsWith("/host/tours")} />
+          <NavLink href="/host/tours" icon={<CompassIcon className="h-5 w-5" />} label="Tours" open={sidebarOpen} active={pathname.startsWith("/host/tours")} />
           <NavLink href="/host/bookings" icon={<CalendarIcon className="h-5 w-5" />} label="Bookings" open={sidebarOpen} active={pathname.startsWith("/host/bookings")} />
           <NavLink href="/host/payments" icon={<WalletIcon className="h-5 w-5" />} label="Payments" open={sidebarOpen} active={pathname.startsWith("/host/payments")} />
           <NavLink href="/host/reviews" icon={<StarCircleIcon className="h-5 w-5" />} label="Reviews" open={sidebarOpen} active={pathname.startsWith("/host/reviews")} />
@@ -187,12 +187,12 @@ export default function HostLayout({
         </nav>
 
         {/* User Profile & Logout */}
-        <div className="p-4 border-t border-slate-700">
+        <div className="shrink-0 border-t border-slate-700 p-3">
           {sidebarOpen && (
-            <div className="mb-3 rounded-2xl border border-white/8 bg-white/5 p-3 text-sm">
+            <div className="mb-2 rounded-2xl border border-white/8 bg-white/5 p-3 text-sm">
               <p className="truncate font-semibold text-slate-100">{user?.name || user?.email}</p>
               <p className="mt-1 truncate text-slate-400">{user?.email}</p>
-              <p className="mt-2 text-xs uppercase tracking-[0.18em] text-cyan-300">Host</p>
+              <p className="mt-1.5 text-xs uppercase tracking-[0.18em] text-cyan-300">Host</p>
             </div>
           )}
           <button
@@ -204,7 +204,7 @@ export default function HostLayout({
           </button>
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="mt-2 flex w-full items-center justify-center rounded-xl px-3 py-2 text-slate-400 transition hover:bg-white/5 hover:text-slate-200"
+            className="mt-1 flex w-full items-center justify-center rounded-xl px-3 py-1.5 text-slate-400 transition hover:bg-white/5 hover:text-slate-200"
             aria-label={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
           >
             <ChevronCollapseIcon open={sidebarOpen} className="h-4 w-4" />
@@ -213,7 +213,7 @@ export default function HostLayout({
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-auto">
+      <main className="min-w-0 flex-1 overflow-auto">
         <div className="md:hidden flex items-center gap-3 px-4 py-3 bg-white border-b border-slate-200">
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -248,13 +248,13 @@ function NavLink({
   return (
     <Link
       href={href}
-      className={`flex items-center gap-3 rounded-2xl px-4 py-3 text-sm transition ${
+      className={`flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm transition ${
         active
           ? "bg-white/10 text-white shadow-[0_12px_30px_rgba(14,165,233,0.12)]"
           : "text-slate-300 hover:bg-white/5 hover:text-white"
       }`}
     >
-      <span className={`flex h-9 w-9 items-center justify-center rounded-xl border ${active ? "border-cyan-400/30 bg-cyan-400/10 text-cyan-300" : "border-white/10 bg-white/5 text-slate-300"}`}>
+      <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border ${active ? "border-cyan-400/30 bg-cyan-400/10 text-cyan-300" : "border-white/10 bg-white/5 text-slate-300"}`}>
         {icon}
       </span>
       {open && <span>{label}</span>}

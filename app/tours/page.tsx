@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useMemo } from 'react'
-import { tours } from '@/lib/tours'
+import { useState, useMemo, useEffect } from 'react'
+import { tours as fallbackTours, type Tour } from '@/lib/tours'
 import { TourCard } from '@/components/tour/TourCard'
 import Header from '@/components/layout/Header/Header'
 import Footer from '@/components/layout/Footer/Footer'
@@ -23,11 +23,39 @@ const features = [
 ]
 
 export default function ToursPage() {
+  const [tours, setTours] = useState<Tour[]>(fallbackTours)
+  const [isLoading, setIsLoading] = useState(true)
   const [searchInput, setSearchInput] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [activeCategory, setActiveCategory] = useState('all')
   const [sortBy, setSortBy] = useState<SortOption>('recommended')
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
+
+  useEffect(() => {
+    let ignore = false
+
+    const loadTours = async () => {
+      try {
+        const response = await fetch('/api/tour', { cache: 'no-store' })
+        if (!response.ok) return
+
+        const payload = await response.json()
+        if (!ignore && Array.isArray(payload?.data)) {
+          setTours(payload.data)
+        }
+      } catch {
+        // Keep static fallback if API fetch fails.
+      } finally {
+        if (!ignore) setIsLoading(false)
+      }
+    }
+
+    loadTours()
+
+    return () => {
+      ignore = true
+    }
+  }, [])
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
@@ -77,7 +105,9 @@ export default function ToursPage() {
   }, [searchQuery, activeCategory, sortBy])
 
   const totalDestinations = new Set(tours.map(t => t.location.city)).size
-  const avgRating = (tours.reduce((sum, t) => sum + t.rating, 0) / tours.length).toFixed(1)
+  const avgRating = tours.length > 0
+    ? (tours.reduce((sum, t) => sum + t.rating, 0) / tours.length).toFixed(1)
+    : '0.0'
 
   return (
     <>
@@ -214,9 +244,15 @@ export default function ToursPage() {
         <section className="container mx-auto px-4 sm:px-6 pt-8 pb-2">
           <div className="flex items-center justify-between">
             <p className="text-sm text-gray-500">
+              {isLoading ? (
+                <>Loading tours...</>
+              ) : (
+                <>
               Showing <span className="font-semibold text-gray-800">{filteredTours.length}</span> {filteredTours.length === 1 ? 'tour' : 'tours'}
               {searchQuery && <> for &quot;<span className="text-blue-600">{searchQuery}</span>&quot;</>}
               {activeCategory !== 'all' && <> in <span className="capitalize text-blue-600">{activeCategory}</span></>}
+                </>
+              )}
             </p>
             {(searchQuery || activeCategory !== 'all') && (
               <button

@@ -1,7 +1,130 @@
+import { createHmac } from "crypto"
+import { Prisma } from "@prisma/client"
 import { prisma } from "@/lib/prisma"
+import { razorpay } from "@/lib/razorpay"
+import { sendBookingConfirmationEmail } from "@/lib/mail"
 import type { ListingStatus, TourDifficulty } from "@prisma/client"
-import type { Tour } from "@/lib/tours"
+import { tours as demoTours, type Tour } from "@/lib/tours"
 
+const TAX_RATE = 0.12
+const PLATFORM_FEE_RATE = 0.1
+
+function generateBookingCode() {
+  const timestamp = Date.now().toString(36).toUpperCase()
+  const random = Math.random().toString(36).slice(2, 7).toUpperCase()
+  return `GT${timestamp}${random}`
+}
+
+function toMoney(value: number) {
+  return Number(value.toFixed(2))
+}
+
+function addDays(date: Date, days: number) {
+  const next = new Date(date)
+  next.setDate(next.getDate() + days)
+  return next
+}
+
+function makeFutureDate(daysAhead: number) {
+  return addDays(new Date(), daysAhead)
+}
+
+function parseGroupBounds(value: string) {
+  const matches = value.match(/\d+/g)?.map(Number) ?? []
+  const lower = matches[0] ?? 2
+  const upper = matches[matches.length - 1] ?? lower
+  return { lower, upper }
+}
+
+function mapDemoTourToInput(demoTour: Tour) {
+  const { lower, upper } = parseGroupBounds(demoTour.groupSize)
+  const startDate = makeFutureDate(14)
+  const endDate = addDays(startDate, Math.max(1, demoTour.duration - 1))
+
+  return {
+    tourData: {
+      slug: demoTour.slug,
+      title: demoTour.title,
+      description: demoTour.description,
+      destination: demoTour.destination,
+      city: demoTour.location.city,
+      country: demoTour.location.country,
+      latitude: String(demoTour.location.lat),
+      longitude: String(demoTour.location.lng),
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString(),
+      registrationDeadline: addDays(startDate, -7).toISOString(),
+      duration: String(demoTour.duration),
+      maxGroupSize: String(upper),
+      totalSlots: String(upper),
+      availableSlots: String(lower),
+      pricePerPerson: String(demoTour.price),
+      originalPrice: String(Math.round(demoTour.price * 1.18)),
+      difficulty: "MODERATE",
+      category: demoTour.category,
+      tags: demoTour.tags,
+      joinApprovalRequired: Boolean(demoTour.joinApprovalRequired),
+      womenOnly: Boolean(demoTour.womenOnly),
+      safeForSoloWomen: Boolean(demoTour.safeForSoloWomen),
+      verifiedTravelersOnly: Boolean(demoTour.verifiedTravelersOnly),
+      images: demoTour.gallery.length > 0 ? demoTour.gallery : [demoTour.image],
+      highlights: demoTour.highlights,
+      included: demoTour.budget.inclusions,
+      excluded: demoTour.budget.exclusions,
+      languages: ["English", "Hindi"],
+      cancellationPolicy: "Free cancellation up to 7 days before departure.",
+      status: "ACTIVE",
+    },
+    itinerary: demoTour.itinerary.map((day) => ({
+      day: day.day,
+      title: day.title,
+      description: day.description,
+      activities: day.activities,
+      meals: day.meals,
+    })),
+  }
+}
+
+async function ensureDemoTourRecord(tourKey: string) {
+  const existing = await prisma.tour.findFirst({ where: { OR: [{ id: tourKey }, { slug: tourKey }], deletedAt: null } })
+  if (existing) return existing
+
+  const demoTour = demoTours.find((item) => item.slug === tourKey || item.id === tourKey)
+  if (!demoTour) return null
+
+  const host = await prisma.host.findFirst({ orderBy: { createdAt: "asc" } })
+  if (!host) {
+    const fallbackUser = await prisma.user.findFirst({ orderBy: { createdAt: "asc" } })
+    if (!fallbackUser) throw new Error("No host or user exists to attach the demo tour")
+
+    const createdHost = await prisma.host.upsert({
+      where: { userId: fallbackUser.id },
+      update: {},
+      create: {
+        userId: fallbackUser.id,
+        businessName: "GetHotels Experiences",
+        hostType: "TOUR_OPERATOR",
+        businessType: "INDIVIDUAL",
+        isActive: true,
+        isApproved: true,
+        isVerified: true,
+      },
+    })
+
+    const { tourData, itinerary } = mapDemoTourToInput(demoTour)
+    return createTour(createdHost.id, tourData, itinerary)
+  }
+
+  const { tourData, itinerary } = mapDemoTourToInput(demoTour)
+  return createTour(host.id, tourData, itinerary)
+}
+
+function publicTourWhere(id: string) {
+  return {
+    OR: [{ id }, { slug: id }],
+    deletedAt: null,
+  }
+}
 
 export type TourInput = {
   slug: string
@@ -13,6 +136,9 @@ export type TourInput = {
   country?: string
   latitude?: string
   longitude?: string
+  startDate?: string
+  endDate?: string
+  registrationDeadline?: string
   duration: string
   maxGroupSize: string
   totalSlots?: string
@@ -21,6 +147,11 @@ export type TourInput = {
   originalPrice?: string
   difficulty?: string
   category?: string
+  tags?: string[]
+  joinApprovalRequired?: boolean
+  womenOnly?: boolean
+  safeForSoloWomen?: boolean
+  verifiedTravelersOnly?: boolean
   images?: string[]
   highlights?: string[]
   included?: string[]
@@ -38,6 +169,20 @@ export type ItineraryDayInput = {
   meals?: string[]
 }
 
+export type TourBookingInput = {
+  guestCount?: number
+  contactName?: string
+  contactEmail?: string
+  contactPhone?: string
+  specialRequests?: string
+}
+
+export type VerifyTourPaymentInput = {
+  razorpay_order_id: string
+  razorpay_payment_id: string
+  razorpay_signature: string
+}
+
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
 export function parseLanguages(value: string | string[] | undefined): string[] {
@@ -48,7 +193,6 @@ export function parseLanguages(value: string | string[] | undefined): string[] {
     .filter(Boolean)
 }
 
-// ─── Queries ───────────────────────────────────────────────────────────────────
 
 export async function listTours(hostId: string) {
   return prisma.tour.findMany({
@@ -77,17 +221,17 @@ export async function listPublicTours() {
     },
     orderBy: [{ totalBookings: "desc" }, { averageRating: "desc" }],
   })
+  console.log("tours:", tours);
 
   return tours.map(normalizeTourForPublic)
 }
 
 export async function getPublicTourBySlug(slug: string) {
+  await ensureDemoTourRecord(slug)
   const tour = await prisma.tour.findFirst({
     where: {
       OR: [{ slug }, { id: slug }],
-      status: "ACTIVE",
-      isActive: true,
-      isApproved: true,
+      deletedAt: null,
     },
     include: {
       TourItineraryDay: { orderBy: { day: "asc" } },
@@ -95,10 +239,22 @@ export async function getPublicTourBySlug(slug: string) {
     },
   })
 
-  return tour ? normalizeTourForPublic(tour) : null
+  return tour ? normalizeTourForPublic(tour as PublicTourRecord) : null
 }
 
-export type TourWithRelations = NonNullable<Awaited<ReturnType<typeof getTourById>>>
+export type TourWithRelations = {
+  latitude: number | null
+  longitude: number | null
+  duration: number
+  maxGroupSize: number
+  totalSlots: number
+  availableSlots: number
+  pricePerPerson: { toString(): string } | number
+  originalPrice: { toString(): string } | number | null
+  languages: string[]
+  TourItineraryDay: ItineraryDayInput[]
+  [key: string]: unknown
+}
 
 export function normalizeTourForForm(tour: TourWithRelations) {
   return {
@@ -116,7 +272,32 @@ export function normalizeTourForForm(tour: TourWithRelations) {
   }
 }
 
-type PublicTourRecord = Awaited<ReturnType<typeof prisma.tour.findMany>>[number] & {
+type PublicTourRecord = {
+  id: string
+  slug: string
+  title: string
+  description: string
+  destination: string
+  city: string | null
+  country: string | null
+  latitude: number | null
+  longitude: number | null
+  duration: number
+  pricePerPerson: { toString(): string } | number
+  availableSlots: number
+  totalSlots: number
+  joinApprovalRequired: boolean
+  womenOnly: boolean
+  safeForSoloWomen: boolean
+  verifiedTravelersOnly: boolean
+  averageRating: number
+  totalReviews: number
+  images: string[]
+  highlights: string[]
+  included: string[]
+  excluded: string[]
+  difficulty: string
+  category: string | null
   TourItineraryDay: {
     day: number
     title: string
@@ -147,6 +328,12 @@ export function normalizeTourForPublic(tour: PublicTourRecord): Tour {
     duration: tour.duration,
     price: Number(tour.pricePerPerson),
     groupSize: `${Math.max(0, tour.availableSlots)} of ${tour.totalSlots} slots available`,
+    availableSlots: tour.availableSlots,
+    totalSlots: tour.totalSlots,
+    joinApprovalRequired: tour.joinApprovalRequired,
+    womenOnly: tour.womenOnly,
+    safeForSoloWomen: tour.safeForSoloWomen,
+    verifiedTravelersOnly: tour.verifiedTravelersOnly,
     rating: tour.averageRating,
     reviews: tour.totalReviews || tour._count?.Review || 0,
     image: images[0],
@@ -182,6 +369,8 @@ export async function createTour(
   const languages = parseLanguages(tourData.languages)
   const totalSlots = parseInt(tourData.totalSlots ?? tourData.maxGroupSize ?? "20") || 20
   const availableSlots = Math.min(parseInt(tourData.availableSlots ?? String(totalSlots)) || totalSlots, totalSlots)
+  const startDate = tourData.startDate ? new Date(tourData.startDate) : new Date()
+  const endDate = tourData.endDate ? new Date(tourData.endDate) : new Date(startDate.getTime() + ((parseInt(tourData.duration) || 1) - 1) * 86400000)
 
   return prisma.$transaction(async (tx) => {
     const created = await tx.tour.create({
@@ -196,6 +385,9 @@ export async function createTour(
         country: tourData.country || null,
         latitude: tourData.latitude ? parseFloat(tourData.latitude) : null,
         longitude: tourData.longitude ? parseFloat(tourData.longitude) : null,
+        startDate,
+        endDate,
+        registrationDeadline: tourData.registrationDeadline ? new Date(tourData.registrationDeadline) : null,
         duration: parseInt(tourData.duration) || 1,
         maxGroupSize: parseInt(tourData.maxGroupSize) || 15,
         totalSlots,
@@ -204,6 +396,11 @@ export async function createTour(
         originalPrice: tourData.originalPrice ? parseFloat(tourData.originalPrice) : null,
         difficulty: (tourData.difficulty || "MODERATE") as TourDifficulty,
         category: tourData.category || null,
+        tags: (tourData.tags ?? []).filter(Boolean),
+        joinApprovalRequired: tourData.joinApprovalRequired ?? false,
+        womenOnly: tourData.womenOnly ?? false,
+        safeForSoloWomen: tourData.safeForSoloWomen ?? false,
+        verifiedTravelersOnly: tourData.verifiedTravelersOnly ?? false,
         images: (tourData.images ?? []),
         highlights: (tourData.highlights ?? []).filter(Boolean),
         included: (tourData.included ?? []).filter(Boolean),
@@ -239,6 +436,8 @@ export async function updateTour(
   const languages = parseLanguages(tourData.languages)
   const totalSlots = parseInt(tourData.totalSlots ?? tourData.maxGroupSize ?? "20") || 20
   const availableSlots = Math.min(parseInt(tourData.availableSlots ?? String(totalSlots)) || totalSlots, totalSlots)
+  const startDate = tourData.startDate ? new Date(tourData.startDate) : new Date()
+  const endDate = tourData.endDate ? new Date(tourData.endDate) : new Date(startDate.getTime() + ((parseInt(tourData.duration) || 1) - 1) * 86400000)
 
   return prisma.$transaction(async (tx) => {
     await tx.tour.update({
@@ -253,6 +452,9 @@ export async function updateTour(
         country: tourData.country || null,
         latitude: tourData.latitude ? parseFloat(tourData.latitude) : null,
         longitude: tourData.longitude ? parseFloat(tourData.longitude) : null,
+        startDate,
+        endDate,
+        registrationDeadline: tourData.registrationDeadline ? new Date(tourData.registrationDeadline) : null,
         duration: parseInt(tourData.duration) || 1,
         maxGroupSize: parseInt(tourData.maxGroupSize) || 15,
         totalSlots,
@@ -261,6 +463,11 @@ export async function updateTour(
         originalPrice: tourData.originalPrice ? parseFloat(tourData.originalPrice) : null,
         difficulty: (tourData.difficulty || "MODERATE") as TourDifficulty,
         category: tourData.category || null,
+        tags: (tourData.tags ?? []).filter(Boolean),
+        joinApprovalRequired: tourData.joinApprovalRequired ?? false,
+        womenOnly: tourData.womenOnly ?? false,
+        safeForSoloWomen: tourData.safeForSoloWomen ?? false,
+        verifiedTravelersOnly: tourData.verifiedTravelersOnly ?? false,
         images: (tourData.images ?? []),
         highlights: (tourData.highlights ?? []).filter(Boolean),
         included: (tourData.included ?? []).filter(Boolean),
@@ -271,7 +478,6 @@ export async function updateTour(
       },
     })
 
-    // Rebuild itinerary
     await tx.tourItineraryDay.deleteMany({ where: { tourId: id } })
     for (const day of itinerary) {
       await tx.tourItineraryDay.create({
@@ -290,4 +496,426 @@ export async function updateTour(
 
 export async function deleteTour(id: string) {
   return prisma.tour.delete({ where: { id } })
+}
+
+export async function checkTourJoinEligibility(userId: string, tourId: string) {
+  const ensured = await ensureDemoTourRecord(tourId)
+  const tour = ensured ?? await prisma.tour.findFirst({
+    where: publicTourWhere(tourId),
+    select: {
+      id: true,
+      hostId: true,
+      title: true,
+      slug: true,
+      startDate: true,
+      endDate: true,
+      registrationDeadline: true,
+      availableSlots: true,
+      totalSlots: true,
+      pricePerPerson: true,
+      joinApprovalRequired: true,
+      womenOnly: true,
+      safeForSoloWomen: true,
+      verifiedTravelersOnly: true,
+    },
+  })
+
+  if (!tour) throw new Error("Tour not found or not available")
+  if (tour.availableSlots <= 0) throw new Error("Tour has no available slots")
+
+  const now = new Date()
+  if (tour.startDate <= now) throw new Error("Tour has already started")
+  if (tour.registrationDeadline && tour.registrationDeadline < now) {
+    throw new Error("Registration deadline has passed")
+  }
+
+  const [participant, joinRequest, profile] = await Promise.all([
+    prisma.tourParticipant.findUnique({
+      where: { tourId_userId: { tourId: tour.id, userId } },
+      select: { id: true, status: true },
+    }),
+    prisma.tourJoinRequest.findFirst({
+      where: { tourId: tour.id, userId, status: "PENDING" },
+      select: { id: true, status: true },
+    }),
+    prisma.userProfile.findUnique({
+      where: { userId },
+      select: { gender: true, trustScore: true, womenSafetyVerified: true },
+    }),
+  ])
+
+  if (participant && !["REJECTED", "CANCELLED"].includes(participant.status)) {
+    throw new Error("You are already part of this tour")
+  }
+  if (joinRequest) throw new Error("You already have a pending join request")
+
+  if (tour.womenOnly && profile?.gender !== "FEMALE") {
+    throw new Error("This tour is only open to women travelers")
+  }
+  if (tour.verifiedTravelersOnly && (profile?.trustScore ?? 0) <= 0) {
+    throw new Error("This tour requires a verified traveler profile")
+  }
+
+  return { tour, profile }
+}
+
+export async function createTourJoinRequest(userId: string, tourId: string, introduction?: string) {
+  const { tour } = await checkTourJoinEligibility(userId, tourId)
+
+  if (!tour.joinApprovalRequired) {
+    throw new Error("This tour does not require host approval. You can book directly.")
+  }
+
+  return prisma.tourJoinRequest.create({
+    data: {
+      userId,
+      tourId: tour.id,
+      introduction: introduction?.trim() || null,
+      status: "PENDING",
+    },
+  })
+}
+
+export async function approveTourJoinRequest(hostId: string, requestId: string) {
+  const request = await prisma.tourJoinRequest.findUnique({ where: { id: requestId } })
+  if (!request) throw new Error("Join request not found")
+
+  const tour = await prisma.tour.findFirst({ where: { id: request.tourId, hostId } })
+  if (!tour) throw new Error("Tour not found")
+
+  return prisma.$transaction(async (tx) => {
+    const updated = await tx.tourJoinRequest.update({
+      where: { id: requestId },
+      data: { status: "APPROVED" },
+    })
+
+    await tx.tourParticipant.upsert({
+      where: { tourId_userId: { tourId: request.tourId, userId: request.userId } },
+      create: {
+        tourId: request.tourId,
+        userId: request.userId,
+        status: "APPROVED",
+        isHostApproved: true,
+        introMessage: request.introduction,
+      },
+      update: {
+        status: "APPROVED",
+        isHostApproved: true,
+        introMessage: request.introduction,
+      },
+    })
+
+    return updated
+  })
+}
+
+export async function rejectTourJoinRequest(hostId: string, requestId: string) {
+  const request = await prisma.tourJoinRequest.findUnique({ where: { id: requestId } })
+  if (!request) throw new Error("Join request not found")
+
+  const tour = await prisma.tour.findFirst({ where: { id: request.tourId, hostId } })
+  if (!tour) throw new Error("Tour not found")
+
+  return prisma.tourJoinRequest.update({
+    where: { id: requestId },
+    data: { status: "REJECTED" },
+  })
+}
+
+export async function createTourBooking(userId: string, tourId: string, input: TourBookingInput) {
+  const guestCount = Math.max(1, Math.trunc(input.guestCount ?? 1))
+  const { tour } = await checkTourJoinEligibility(userId, tourId)
+  if (guestCount > tour.availableSlots) throw new Error("Not enough tour slots available")
+
+  if (tour.joinApprovalRequired) {
+    const approved = await prisma.tourParticipant.findUnique({
+      where: { tourId_userId: { tourId: tour.id, userId } },
+      select: { status: true, isHostApproved: true },
+    })
+    if (!approved || !approved.isHostApproved || !["APPROVED", "JOINED"].includes(approved.status)) {
+      throw new Error("Host approval is required before booking this tour")
+    }
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { name: true, email: true, phone: true },
+  })
+
+  const subtotal = toMoney(Number(tour.pricePerPerson) * guestCount)
+  const taxes = toMoney(subtotal * TAX_RATE)
+  const totalAmount = toMoney(subtotal + taxes)
+  const platformFee = toMoney(totalAmount * PLATFORM_FEE_RATE)
+  const hostEarnings = toMoney(totalAmount - platformFee)
+  const bookingCode = generateBookingCode()
+
+  return prisma.booking.create({
+    data: {
+      bookingCode,
+      userId,
+      hostId: tour.hostId,
+      tourId: tour.id,
+      checkIn: tour.startDate,
+      checkOut: addDays(tour.endDate, 1),
+      totalGuests: guestCount,
+      adults: guestCount,
+      children: 0,
+      infants: 0,
+      contactName: input.contactName?.trim() || user?.name || "Traveler",
+      contactEmail: input.contactEmail?.trim() || user?.email || "",
+      contactPhone: input.contactPhone?.trim() || user?.phone || "",
+      specialRequests: input.specialRequests?.trim() || null,
+      subtotal: new Prisma.Decimal(subtotal),
+      taxes: new Prisma.Decimal(taxes),
+      discount: new Prisma.Decimal(0),
+      totalAmount: new Prisma.Decimal(totalAmount),
+      currency: "INR",
+      status: "PENDING",
+      Payment: {
+        create: {
+          userId,
+          hostId: tour.hostId,
+          amount: new Prisma.Decimal(totalAmount),
+          hostEarnings: new Prisma.Decimal(hostEarnings),
+          platformFee: new Prisma.Decimal(platformFee),
+          currency: "INR",
+          provider: "razorpay",
+          status: "PENDING",
+        },
+      },
+      BookingTimeline: {
+        create: {
+          type: "CREATED",
+          title: "Tour booking created",
+          message: "Complete payment to confirm your tour slot.",
+          metadata: { tourId: tour.id, guestCount },
+        },
+      },
+    },
+    include: {
+      Tour: { select: { id: true, title: true, city: true, destination: true, slug: true } },
+      Payment: true,
+      BookingTimeline: true,
+    },
+  })
+}
+
+export async function createTourPaymentOrder(userId: string, bookingId: string) {
+  const booking = await prisma.booking.findFirst({
+    where: { id: bookingId, userId, tourId: { not: null }, status: "PENDING" },
+    include: { Payment: true, Tour: { select: { title: true } } },
+  })
+
+  if (!booking || !booking.Payment) throw new Error("Pending tour booking not found")
+
+  const order = await razorpay.orders.create({
+    amount: Math.round(Number(booking.totalAmount) * 100),
+    currency: booking.currency,
+    receipt: booking.bookingCode,
+    notes: {
+      bookingId: booking.id,
+      bookingCode: booking.bookingCode,
+      tour: booking.Tour?.title ?? "Tour",
+    },
+  })
+
+  await prisma.payment.update({
+    where: { bookingId: booking.id },
+    data: {
+      providerOrderId: order.id,
+      status: "PROCESSING",
+    },
+  })
+
+  return {
+    bookingId: booking.id,
+    bookingCode: booking.bookingCode,
+    orderId: order.id,
+    amount: order.amount,
+    currency: order.currency,
+    keyId: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ?? process.env.RAZORPAY_KEY_ID,
+  }
+}
+
+export async function verifyTourPayment(userId: string, input: VerifyTourPaymentInput) {
+  const expected = createHmac("sha256", process.env.RAZORPAY_KEY_SECRET ?? "")
+    .update(`${input.razorpay_order_id}|${input.razorpay_payment_id}`)
+    .digest("hex")
+
+  if (expected !== input.razorpay_signature) throw new Error("Invalid payment signature")
+
+  const payment = await prisma.payment.findFirst({
+    where: { providerOrderId: input.razorpay_order_id, userId },
+    include: { Booking: { include: { Tour: true } } },
+  })
+
+  if (!payment?.Booking?.tourId || !payment.Booking.Tour) throw new Error("Tour payment not found")
+  return confirmTourBooking(payment.Booking.id, input.razorpay_payment_id)
+}
+
+export async function confirmTourBooking(bookingId: string, providerPaymentId?: string) {
+  const booking = await prisma.$transaction(async (tx) => {
+    const existing = await tx.booking.findUnique({
+      where: { id: bookingId },
+      include: { Tour: true, Payment: true },
+    })
+
+    if (!existing?.Tour || !existing.tourId) throw new Error("Tour booking not found")
+    if (existing.status === "CONFIRMED") return existing
+    if (existing.status !== "PENDING") throw new Error("Booking cannot be confirmed")
+    if (existing.Tour.availableSlots < existing.totalGuests) throw new Error("Not enough tour slots available")
+
+    await tx.tour.update({
+      where: { id: existing.Tour.id },
+      data: {
+        availableSlots: { decrement: existing.totalGuests },
+        totalBookings: { increment: 1 },
+      },
+    })
+
+    await tx.payment.update({
+      where: { bookingId: existing.id },
+      data: {
+        status: "SUCCESS",
+        providerPaymentId: providerPaymentId ?? existing.Payment?.providerPaymentId,
+        transactionId: providerPaymentId ?? existing.Payment?.transactionId,
+        paidAt: new Date(),
+      },
+    })
+
+    await tx.tourParticipant.upsert({
+      where: { tourId_userId: { tourId: existing.Tour.id, userId: existing.userId } },
+      create: {
+        tourId: existing.Tour.id,
+        userId: existing.userId,
+        bookingId: existing.id,
+        status: "JOINED",
+        isHostApproved: true,
+      },
+      update: {
+        bookingId: existing.id,
+        status: "JOINED",
+        isHostApproved: true,
+      },
+    })
+
+    await tx.tourChatRoom.upsert({
+      where: { tourId: existing.Tour.id },
+      create: { tourId: existing.Tour.id, name: `${existing.Tour.title} group` },
+      update: {},
+    })
+
+    return tx.booking.update({
+      where: { id: existing.id },
+      data: {
+        status: "CONFIRMED",
+        BookingTimeline: {
+          create: {
+            type: "PAYMENT_CONFIRMED",
+            title: "Payment confirmed",
+            message: "Tour slot confirmed and group access unlocked.",
+          },
+        },
+      },
+      include: {
+        Tour: { select: { id: true, title: true, city: true, destination: true, slug: true } },
+        Payment: true,
+        TourParticipant: true,
+      },
+    })
+  }, {
+    isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+    maxWait: 10000,
+    timeout: 20000,
+  })
+
+  await sendBookingConfirmationEmail({
+    to: booking.contactEmail,
+    guestName: booking.contactName,
+    bookingCode: booking.bookingCode,
+    hotelName: booking.Tour?.title ?? "GetHotels tour",
+    city: booking.Tour?.city ?? booking.Tour?.destination,
+    checkIn: booking.checkIn ?? new Date(),
+    checkOut: booking.checkOut ?? booking.checkIn ?? new Date(),
+    totalAmount: booking.totalAmount,
+    currency: booking.currency,
+    rooms: [{
+      roomName: "Tour seat",
+      quantity: booking.totalGuests,
+      nights: 1,
+      pricePerNight: booking.subtotal,
+      total: booking.totalAmount,
+    }],
+    bookingUrl: `${process.env.NEXTAUTH_URL ?? "http://localhost:3000"}/profile`,
+  }).catch((error) => {
+    console.error("Failed to send tour confirmation email:", error)
+  })
+
+  return booking
+}
+
+export async function listTourParticipants(userId: string, tourId: string) {
+  await ensureDemoTourRecord(tourId)
+  const tour = await prisma.tour.findFirst({ where: { OR: [{ id: tourId }, { slug: tourId }] }, select: { id: true, hostId: true } })
+  if (!tour) throw new Error("Tour not found")
+
+  const access = await prisma.tourParticipant.findUnique({
+    where: { tourId_userId: { tourId: tour.id, userId } },
+    select: { id: true },
+  })
+  if (!access) throw new Error("Join the tour to view participants")
+
+  return prisma.tourParticipant.findMany({
+    where: { tourId: tour.id, status: { in: ["APPROVED", "JOINED", "COMPLETED"] } },
+    select: {
+      id: true,
+      status: true,
+      role: true,
+      isVerified: true,
+      isHostApproved: true,
+      User: {
+        select: {
+          id: true,
+          name: true,
+          UserProfile: {
+            select: {
+              avatarUrl: true,
+              bio: true,
+              gender: true,
+              showGender: true,
+              languages: true,
+              interests: true,
+              travelStyle: true,
+              trustScore: true,
+            },
+          },
+        },
+      },
+    },
+  })
+}
+
+export async function getTourChatPreview(userId: string, tourId: string) {
+  await ensureDemoTourRecord(tourId)
+  const tour = await prisma.tour.findFirst({ where: { OR: [{ id: tourId }, { slug: tourId }] }, select: { id: true } })
+  if (!tour) throw new Error("Tour not found")
+
+  const access = await prisma.tourParticipant.findUnique({
+    where: { tourId_userId: { tourId: tour.id, userId } },
+    select: { id: true },
+  })
+  if (!access) throw new Error("Join the tour to unlock group chat")
+
+  const room = await prisma.tourChatRoom.findUnique({
+    where: { tourId: tour.id },
+    include: {
+      messages: {
+        orderBy: { createdAt: "desc" },
+        take: 20,
+        include: { User: { select: { id: true, name: true } } },
+      },
+    },
+  })
+
+  return room ? { ...room, messages: room.messages.reverse() } : { tourId: tour.id, messages: [] }
 }
