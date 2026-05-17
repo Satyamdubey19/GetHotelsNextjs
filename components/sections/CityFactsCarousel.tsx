@@ -16,8 +16,6 @@ import {
   Sparkles,
   Utensils,
 } from "lucide-react"
-import { Button } from "@/components/ui/Button"
-import { Card, CardContent } from "@/components/ui/Card"
 import type { CityFact } from "@/types/sections"
 
 const cityFacts: Record<string, CityFact[]> = {
@@ -197,103 +195,96 @@ export default function CityFactsCarousel() {
   const previous = () => setActiveIndex((current) => (current - 1 + facts.length) % facts.length)
   const next = () => setActiveIndex((current) => (current + 1) % facts.length)
 
+  const activeFact = facts[activeIndex]
+  const ActiveIcon = activeFact.icon
+
   return (
     <section
-      className="overflow-hidden bg-white py-14 lg:py-20"
+      className="overflow-hidden bg-[#0d1424] py-16 text-white lg:py-20"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
       onFocus={() => setIsPaused(true)}
       onBlur={() => setIsPaused(false)}
     >
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div className="grid gap-10 lg:grid-cols-[0.95fr_1.05fr] lg:items-center">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-700">City pulse</p>
-            <h2 className="mt-2 text-3xl font-bold tracking-tight text-slate-950 sm:text-4xl">
-              Useful facts around {city}.
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-teal-300">City pulse</p>
+            <h2 className="mt-3 max-w-xl text-3xl font-black tracking-tight sm:text-4xl">
+              Discover the hidden side of {city}.
             </h2>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
-              Location-aware travel notes for better stays, smoother routes, and smarter plans.
+            <p className="mt-4 max-w-lg text-sm leading-6 text-slate-300">
+              Interactive insights and location-aware facts to help you choose your next destination.
             </p>
-          </div>
 
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="icon" className="rounded-xl bg-white" onClick={previous} aria-label="Previous city fact">
-              <ArrowLeft className="size-4" />
-            </Button>
-            <Button variant="outline" size="icon" className="rounded-xl bg-white" onClick={next} aria-label="Next city fact">
-              <ArrowRight className="size-4" />
-            </Button>
-          </div>
-        </div>
-
-        <div className="relative">
-          <div className="absolute inset-y-6 left-0 hidden w-24 bg-gradient-to-r from-white to-transparent lg:block" />
-          <div className="absolute inset-y-6 right-0 hidden w-24 bg-gradient-to-l from-white to-transparent lg:block" />
-
-          <div className="overflow-hidden rounded-3xl border border-slate-200 bg-slate-950 p-4 shadow-2xl shadow-slate-200/70 sm:p-5">
-            <div
-              className="flex transition-transform duration-700 ease-out"
-              style={{ transform: `translateX(-${activeIndex * 100}%)` }}
-            >
-              {facts.map((fact, index) => (
-                <div key={fact.title} className="min-w-full px-1">
-                  <Card className="relative min-h-[280px] overflow-hidden rounded-2xl border-white/10 bg-white/[0.06] py-0 text-white shadow-none ring-0">
-                    <div className={`absolute -right-16 -top-20 size-56 rounded-full bg-gradient-to-br ${fact.color} opacity-30 blur-2xl`} />
-                    <div className={`absolute bottom-0 left-0 h-1.5 bg-gradient-to-r ${fact.color} transition-all duration-700`} style={{ width: `${((index + 1) / facts.length) * 100}%` }} />
-                    <CardContent className="relative grid gap-8 p-6 sm:p-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
-                      <div>
-                        <div className={`mb-6 flex size-16 items-center justify-center rounded-2xl bg-gradient-to-br ${fact.color} text-white shadow-xl shadow-slate-950/25`}>
-                          <fact.icon className="size-7" />
-                        </div>
-                        <p className="text-sm font-semibold uppercase tracking-[0.2em] text-white/50">{fact.title}</p>
-                        <h3 className="mt-3 text-4xl font-bold tracking-tight sm:text-5xl">{fact.value}</h3>
-                        <p className="mt-4 max-w-xl text-base leading-7 text-white/68">{fact.detail}</p>
-                      </div>
-
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        {facts.map((item, itemIndex) => (
-                          <button
-                            key={item.title}
-                            type="button"
-                            onClick={() => setActiveIndex(itemIndex)}
-                            className={`group rounded-2xl border p-4 text-left transition ${
-                              itemIndex === activeIndex
-                                ? "border-white/30 bg-white/15"
-                                : "border-white/10 bg-white/[0.04] hover:border-white/25 hover:bg-white/[0.08]"
-                            }`}
-                          >
-                            <div className="flex items-center gap-3">
-                              <div className={`flex size-10 items-center justify-center rounded-xl bg-gradient-to-br ${item.color} text-white`}>
-                                <item.icon className="size-5" />
-                              </div>
-                              <div className="min-w-0">
-                                <p className="truncate text-sm font-bold text-white">{item.title}</p>
-                                <p className="truncate text-xs text-white/48">{item.value}</p>
-                              </div>
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
+            <div className="mt-8 grid gap-4 sm:grid-cols-2">
+              {facts.map((item, index) => (
+                <button
+                  key={item.title}
+                  type="button"
+                  onClick={() => setActiveIndex(index)}
+                  className={`rounded-2xl border p-5 text-left transition ${
+                    index === activeIndex
+                      ? "border-teal-300/50 bg-white/[0.11]"
+                      : "border-white/10 bg-white/[0.06] hover:border-white/25"
+                  }`}
+                >
+                  <item.icon className="size-5 text-teal-300" />
+                  <p className="mt-4 text-sm font-bold">{item.title}</p>
+                  <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-300">{item.detail}</p>
+                </button>
               ))}
+            </div>
+
+            <div className="mt-7 flex items-center gap-3">
+              <button
+                type="button"
+                onClick={previous}
+                className="flex size-10 items-center justify-center rounded-full border border-white/10 bg-white/[0.07] text-white transition hover:bg-white/15"
+                aria-label="Previous city fact"
+              >
+                <ArrowLeft className="size-4" />
+              </button>
+              <button
+                type="button"
+                onClick={next}
+                className="flex size-10 items-center justify-center rounded-full border border-white/10 bg-white/[0.07] text-white transition hover:bg-white/15"
+                aria-label="Next city fact"
+              >
+                <ArrowRight className="size-4" />
+              </button>
+              <div className="flex items-center gap-2 pl-2">
+                {facts.map((fact, index) => (
+                  <button
+                    key={fact.title}
+                    type="button"
+                    onClick={() => setActiveIndex(index)}
+                    className={`h-2 rounded-full transition-all ${
+                      activeIndex === index ? "w-8 bg-teal-300" : "w-2 bg-white/25"
+                    }`}
+                    aria-label={`Show ${fact.title}`}
+                  />
+                ))}
+              </div>
             </div>
           </div>
 
-          <div className="mt-5 flex items-center justify-center gap-2">
-            {facts.map((fact, index) => (
-              <button
-                key={fact.title}
-                type="button"
-                onClick={() => setActiveIndex(index)}
-                className={`h-2 rounded-full transition-all ${
-                  activeIndex === index ? "w-8 bg-slate-950" : "w-2 bg-slate-300 hover:bg-slate-500"
-                }`}
-                aria-label={`Show ${fact.title}`}
-              />
-            ))}
+          <div className="relative min-h-[420px] overflow-hidden rounded-[28px] bg-slate-900 shadow-2xl shadow-black/25">
+            <div
+              className="absolute inset-0 bg-cover bg-center opacity-75"
+              style={{
+                backgroundImage:
+                  "url('https://images.unsplash.com/photo-1599661046289-e31897846e41?auto=format&fit=crop&w=1200&q=80')",
+              }}
+            />
+            <div className="absolute inset-0 bg-gradient-to-br from-[#0d1424]/35 via-[#0d1424]/20 to-[#0d1424]/85" />
+            <div className="absolute bottom-8 left-6 right-6 max-w-sm rounded-2xl bg-white p-6 text-slate-950 shadow-2xl sm:left-8">
+              <ActiveIcon className="size-6 text-teal-700" />
+              <p className="mt-5 text-sm font-semibold">Did you know?</p>
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                {activeFact.value}: {activeFact.detail}
+              </p>
+            </div>
           </div>
         </div>
       </div>

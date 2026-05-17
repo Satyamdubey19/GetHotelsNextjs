@@ -5,12 +5,14 @@ import { getListQuery, paginationMeta } from "@/utils/admin-query"
 import {
   decideAdminKyc,
   getAdminDashboard,
+  listAdminBookings,
   listAdminHosts,
   listAdminKyc,
   listAdminListings,
   listAdminPayouts,
   listAdminPosts,
   listAdminUsers,
+  updateAdminBooking,
   updateAdminHost,
   updateAdminListing,
   updateAdminPayout,
@@ -18,6 +20,7 @@ import {
 } from "@/services/admin.service"
 import {
   parseAccountUpdate,
+  parseBookingUpdate,
   parseKycDecision,
   parseListingUpdate,
   parsePayoutUpdate,
@@ -52,8 +55,17 @@ export async function adminDashboard(request: NextRequest) {
 
 export async function adminBookings(request: NextRequest) {
   return withAdmin(request, async () => {
-    const dashboard = await getAdminDashboard()
-    return ok(dashboard.recentBookings ?? [])
+    const query = getListQuery(request)
+    const result = await listAdminBookings(query)
+    return ok(result.rows, paginationMeta(result.total, query.page, query.limit))
+  })
+}
+
+export async function adminUpdateBooking(request: NextRequest, context: RouteParams) {
+  return withAdmin(request, async (admin) => {
+    const { id } = await context.params
+    const input = await parseBookingUpdate(request)
+    return ok(await updateAdminBooking(id, admin, input))
   })
 }
 

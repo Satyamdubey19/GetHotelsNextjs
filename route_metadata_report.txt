@@ -1,0 +1,526 @@
+###FILE app/activities/[slug]/page.tsx
+IMPORTS:
+import { useState } from "react"
+import Link from "next/link"
+import { useParams } from "next/navigation"
+import Header from "@/components/layout/Header/Header"
+import Footer from "@/components/layout/Footer/Footer"
+import { getActivityBySlug } from "@/lib/activities"
+import {
+API_HINTS: service getter calls present
+AUTH_HINTS: role checks maybe present
+STATE_HINTS: useState, empty/no-data messaging
+RESPONSIVE_HINTS: Tailwind breakpoints used, constrained container layout
+---
+###FILE app/activities/page.tsx
+IMPORTS:
+import { useMemo, useState } from "react"
+import Link from "next/link"
+import Header from "@/components/layout/Header/Header"
+import Footer from "@/components/layout/Footer/Footer"
+import { activities, activityCities, ActivityCategory } from "@/lib/activities"
+import {
+AUTH_HINTS: role checks maybe present
+STATE_HINTS: useState, empty/no-data messaging
+RESPONSIVE_HINTS: Tailwind breakpoints used, constrained container layout
+---
+###FILE app/admin/analytics/page.tsx
+IMPORTS:
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { BarChart3, CalendarClock, CreditCard, ShieldCheck } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { useEffect } from 'react';
+AUTH_HINTS: auth/session/redirect logic, role checks maybe present
+STATE_HINTS: useEffect
+RESPONSIVE_HINTS: Tailwind breakpoints used, constrained container layout
+---
+###FILE app/admin/bookings/page.tsx
+IMPORTS:
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { CalendarClock, CheckCircle2, XCircle } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import StatusBadge from '@/components/ui/StatusBadge';
+import Spinner from '@/components/ui/Spinner';
+import { TablePageSkeleton } from '@/components/ui/loading-skeletons';
+import FilterTabs from '@/components/ui/FilterTabs';
+import Modal from '@/components/ui/Modal';
+import type { AdminBooking as Booking } from '@/types/admin';
+import api, { getApiErrorMessage } from '@/lib/axios';
+API_HINTS: axios/api client calls, service getter calls present
+AUTH_HINTS: auth/session/redirect logic, role checks maybe present
+STATE_HINTS: useState, useEffect, loading handling, error handling, empty/no-data messaging
+RESPONSIVE_HINTS: Tailwind breakpoints used, constrained container layout
+---
+###FILE app/admin/hosts/page.tsx
+IMPORTS:
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { Building2, CheckCircle2, Clock3, IndianRupee, MapPin, Search } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import StatCard from '@/components/ui/StatCard';
+import StatusBadge from '@/components/ui/StatusBadge';
+import Spinner from '@/components/ui/Spinner';
+import { TablePageSkeleton } from '@/components/ui/loading-skeletons';
+import FilterTabs from '@/components/ui/FilterTabs';
+import Input from '@/components/ui/Input';
+AUTH_HINTS: auth/session/redirect logic, role checks maybe present
+STATE_HINTS: useState, useEffect, loading handling, error handling, empty/no-data messaging
+RESPONSIVE_HINTS: Tailwind breakpoints used, constrained container layout
+---
+###FILE app/admin/hotels/page.tsx
+---
+###FILE app/admin/kyc/page.tsx
+IMPORTS:
+import { useState, useEffect } from "react"
+import { CheckCircle2, Clock3, ShieldCheck, XCircle } from 'lucide-react'
+import BackLink from "@/components/ui/BackLink"
+import FilterTabs from "@/components/ui/FilterTabs"
+import StatusBadge from "@/components/ui/StatusBadge"
+import Spinner from "@/components/ui/Spinner"
+import { TablePageSkeleton } from "@/components/ui/loading-skeletons"
+import Modal from "@/components/ui/Modal"
+import api from "@/lib/axios"
+API_HINTS: axios/api client calls
+AUTH_HINTS: role checks maybe present
+STATE_HINTS: useState, useEffect, loading handling, error handling
+RESPONSIVE_HINTS: Tailwind breakpoints used, constrained container layout
+---
+###FILE app/admin/listings/page.tsx
+IMPORTS:
+import { useEffect, useMemo, useState } from 'react';
+import { usePathname } from 'next/navigation';
+import { Ban, CheckCircle2, Eye, FilePenLine, Save, Search, Trash2 } from 'lucide-react';
+import FilterTabs from '@/components/ui/FilterTabs';
+import Input from '@/components/ui/Input';
+import Modal from '@/components/ui/Modal';
+import StatusBadge from '@/components/ui/StatusBadge';
+import { TablePageSkeleton } from '@/components/ui/loading-skeletons';
+import api, { getApiErrorMessage } from '@/lib/axios';
+API_HINTS: axios/api client calls, service getter calls present, update* calls present
+AUTH_HINTS: role checks maybe present
+STATE_HINTS: useState, useEffect, loading handling, error handling
+RESPONSIVE_HINTS: Tailwind breakpoints used, constrained container layout
+---
+###FILE app/admin/page.tsx
+IMPORTS:
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import {
+import { useAuth } from '@/contexts/AuthContext';
+import StatCard from '@/components/ui/StatCard';
+import StatusBadge from '@/components/ui/StatusBadge';
+import { AdminDashboardSkeleton } from '@/components/ui/loading-skeletons';
+API_HINTS: service getter calls present
+AUTH_HINTS: auth/session/redirect logic, role checks maybe present
+STATE_HINTS: useState, useEffect, loading handling, error handling
+RESPONSIVE_HINTS: Tailwind breakpoints used, constrained container layout
+---
+###FILE app/admin/payouts/page.tsx
+IMPORTS:
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { CheckCircle2, Clock3, Cog, CreditCard, IndianRupee, Wallet } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import StatCard from '@/components/ui/StatCard';
+import StatusBadge from '@/components/ui/StatusBadge';
+import Spinner from '@/components/ui/Spinner';
+import { TablePageSkeleton } from '@/components/ui/loading-skeletons';
+import FilterTabs from '@/components/ui/FilterTabs';
+import Modal from '@/components/ui/Modal';
+import api, { getApiErrorMessage } from '@/lib/axios';
+API_HINTS: axios/api client calls, service getter calls present
+AUTH_HINTS: auth/session/redirect logic, role checks maybe present
+STATE_HINTS: useState, useEffect, loading handling, error handling, empty/no-data messaging
+RESPONSIVE_HINTS: Tailwind breakpoints used, constrained container layout
+---
+###FILE app/admin/posts/page.tsx
+IMPORTS:
+import { useEffect, useMemo, useState } from 'react';
+import type { ComponentType } from 'react';
+import { Eye, Heart, MessageCircle, Search, SquarePen } from 'lucide-react';
+import Input from '@/components/ui/Input';
+import StatusBadge from '@/components/ui/StatusBadge';
+import { TablePageSkeleton } from '@/components/ui/loading-skeletons';
+import api from '@/lib/axios';
+API_HINTS: axios/api client calls
+AUTH_HINTS: role checks maybe present
+STATE_HINTS: useState, useEffect, loading handling, empty/no-data messaging
+RESPONSIVE_HINTS: Tailwind breakpoints used, constrained container layout
+---
+###FILE app/admin/rentals/page.tsx
+---
+###FILE app/admin/tours/page.tsx
+IMPORTS:
+import { useEffect, useMemo, useState } from "react"
+import {
+import Modal from "@/components/ui/Modal"
+import StatusBadge from "@/components/ui/StatusBadge"
+import api, { getApiErrorMessage } from "@/lib/axios"
+API_HINTS: axios/api client calls, service getter calls present, update* calls present
+AUTH_HINTS: role checks maybe present
+STATE_HINTS: useState, useEffect, loading handling, error handling, empty/no-data messaging
+RESPONSIVE_HINTS: Tailwind breakpoints used, constrained container layout
+---
+###FILE app/admin/users/page.tsx
+IMPORTS:
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { Building2, ShieldCheck, UserRound, Users } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import StatCard from '@/components/ui/StatCard';
+import StatusBadge from '@/components/ui/StatusBadge';
+import Spinner from '@/components/ui/Spinner';
+import { TablePageSkeleton } from '@/components/ui/loading-skeletons';
+import FilterTabs from '@/components/ui/FilterTabs';
+API_HINTS: service getter calls present
+AUTH_HINTS: auth/session/redirect logic, role checks maybe present
+STATE_HINTS: useState, useEffect, loading handling, error handling, empty/no-data messaging
+RESPONSIVE_HINTS: Tailwind breakpoints used, constrained container layout
+---
+###FILE app/forgot-password/page.tsx
+IMPORTS:
+import Link from 'next/link';
+import { useState } from 'react';
+import Input from '@/components/ui/Input';
+import Button from '@/components/ui/Button';
+import FormLabel from '@/components/ui/FormLabel';
+STATE_HINTS: useState, loading handling
+RESPONSIVE_HINTS: Tailwind breakpoints used, constrained container layout
+---
+###FILE app/host/analytics/page.tsx
+IMPORTS:
+import { ArrowUpRight, BarChart3, CalendarDays, IndianRupee, Star, Users } from "lucide-react"
+import { HostPage, HostPill, HostSection, HostStatCard } from "@/components/host/HostUI"
+AUTH_HINTS: role checks maybe present
+RESPONSIVE_HINTS: Tailwind breakpoints used
+---
+###FILE app/host/bookings/[bookingId]/page.tsx
+IMPORTS:
+import { registerClientReference } from "react-server-dom-turbopack/server";
+AUTH_HINTS: role checks maybe present
+STATE_HINTS: error handling
+---
+###FILE app/host/bookings/page.tsx
+IMPORTS:
+import { useEffect, useState } from "react"
+import { BarChart3, CalendarCheck, CheckCircle2, ChevronDown, Clock, Filter, Hotel, IndianRupee, Users } from "lucide-react"
+import { HostEmptyState, HostPage, HostPill, HostSection, HostStatCard } from "@/components/host/HostUI"
+import Spinner from "@/components/ui/Spinner"
+import type { HostBooking as Booking, HostBookingActionProps } from "@/types/host-pages"
+import api from "@/lib/axios"
+API_HINTS: axios/api client calls
+AUTH_HINTS: role checks maybe present
+STATE_HINTS: useState, useEffect, loading handling, error handling, empty/no-data messaging
+RESPONSIVE_HINTS: Tailwind breakpoints used
+---
+###FILE app/host/hotels/[id]/page.tsx
+IMPORTS:
+import { useState, useEffect } from "react"
+import { useRouter, useParams } from "next/navigation"
+import Link from "next/link"
+import {
+import PhotoUploader from "@/components/ui/PhotoUploader"
+import axios from "axios"
+import type { HostFormSectionCardProps, HotelFormData as FormData, RoomEntry } from "@/types/host-forms"
+API_HINTS: axios/api client calls, update* calls present
+AUTH_HINTS: role checks maybe present
+STATE_HINTS: useState, useEffect, loading handling, error handling, empty/no-data messaging
+RESPONSIVE_HINTS: Tailwind breakpoints used, constrained container layout
+---
+###FILE app/host/kyc/page.tsx
+IMPORTS:
+import { useState, useEffect } from "react"
+import { AlertTriangle, CheckCircle2, ChevronDown, Clock, FileText, ShieldCheck, Upload, User } from "lucide-react"
+import Spinner from "@/components/ui/Spinner"
+import api from "@/lib/axios"
+API_HINTS: axios/api client calls, service getter calls present
+AUTH_HINTS: role checks maybe present
+STATE_HINTS: useState, useEffect, loading handling, error handling
+RESPONSIVE_HINTS: Tailwind breakpoints used, constrained container layout
+---
+###FILE app/host/page.tsx
+IMPORTS:
+import { useEffect, useState } from "react"
+import Link from "next/link"
+import { Building2, CalendarCheck, Car, Compass, IndianRupee, Plus, Star, Ticket, TrendingUp } from "lucide-react"
+import { useAuth } from "@/contexts/AuthContext"
+import { HostDashboardSkeleton } from "@/components/ui/loading-skeletons"
+import { HostPage, HostPill, HostSection, HostStatCard } from "@/components/host/HostUI"
+import api from "@/lib/axios"
+import type {
+API_HINTS: axios/api client calls
+AUTH_HINTS: auth/session/redirect logic, role checks maybe present
+STATE_HINTS: useState, useEffect, loading handling, error handling
+RESPONSIVE_HINTS: Tailwind breakpoints used
+---
+###FILE app/host/payments/page.tsx
+IMPORTS:
+import { useState, useEffect } from "react"
+import { ArrowDownToLine, CreditCard, IndianRupee, Receipt, TrendingUp, X } from "lucide-react"
+import { HostEmptyState, HostPage, HostSection, HostStatCard } from "@/components/host/HostUI"
+import StatusBadge from "@/components/ui/StatusBadge"
+import Spinner from "@/components/ui/Spinner"
+import api from "@/lib/axios"
+API_HINTS: axios/api client calls
+AUTH_HINTS: role checks maybe present
+STATE_HINTS: useState, useEffect, loading handling, error handling, empty/no-data messaging
+RESPONSIVE_HINTS: Tailwind breakpoints used
+---
+###FILE app/host/reviews/page.tsx
+IMPORTS:
+import { useEffect, useState } from "react"
+import { MessageSquare, Star, ThumbsDown, ThumbsUp } from "lucide-react"
+import { HostEmptyState, HostPage, HostSection, HostStatCard } from "@/components/host/HostUI"
+import Spinner from "@/components/ui/Spinner"
+AUTH_HINTS: role checks maybe present
+STATE_HINTS: useState, useEffect, loading handling, error handling, empty/no-data messaging
+RESPONSIVE_HINTS: Tailwind breakpoints used
+---
+###FILE app/host/signup/page.tsx
+IMPORTS:
+import Link from "next/link"
+import { BarChart3, CalendarCheck, CircleDollarSign, ShieldCheck, Sparkles, Star } from "lucide-react"
+import HostSignupForm from "@/components/auth/HostSignupForm"
+AUTH_HINTS: role checks maybe present
+RESPONSIVE_HINTS: Tailwind breakpoints used, constrained container layout
+---
+###FILE app/host/tours/[id]/chat/page.tsx
+IMPORTS:
+import type { FormEvent } from "react"
+import { useEffect, useMemo, useState } from "react"
+import Link from "next/link"
+import { useParams } from "next/navigation"
+import { io, type Socket } from "socket.io-client"
+import { ArrowLeft, Bell, ImageIcon, Megaphone, MicOff, MoreHorizontal, Paperclip, Pin, Send, Shield, Trash2, Users } from "lucide-react"
+import { useAuth } from "@/contexts/AuthContext"
+import api, { getApiErrorMessage } from "@/lib/axios"
+API_HINTS: axios/api client calls, service getter calls present
+AUTH_HINTS: auth/session/redirect logic, role checks maybe present
+STATE_HINTS: useState, useEffect, loading handling, error handling
+RESPONSIVE_HINTS: Tailwind breakpoints used, constrained container layout
+---
+###FILE app/host/tours/[id]/page.tsx
+IMPORTS:
+import { useEffect, useMemo, useState } from "react"
+import { useParams, useRouter } from "next/navigation"
+import Link from "next/link"
+import {
+import PhotoUploader from "@/components/ui/PhotoUploader"
+import type { ItineraryDay, TourForm } from "@/types/host-forms"
+import api, { getApiErrorMessage } from "@/lib/axios"
+API_HINTS: axios/api client calls, service getter calls present, update* calls present
+AUTH_HINTS: role checks maybe present
+STATE_HINTS: useState, useEffect, loading handling, error handling, empty/no-data messaging
+RESPONSIVE_HINTS: Tailwind breakpoints used, constrained container layout
+---
+###FILE app/host/tours/[id]/participants/page.tsx
+IMPORTS:
+import { useMemo, useState } from "react"
+import Link from "next/link"
+import { ArrowLeft, BadgeCheck, Check, MessageSquare, Search, ShieldAlert, Star, UserCheck, Users, X } from "lucide-react"
+AUTH_HINTS: role checks maybe present
+STATE_HINTS: useState
+RESPONSIVE_HINTS: Tailwind breakpoints used, constrained container layout
+---
+###FILE app/host/tours/page.tsx
+IMPORTS:
+import { useEffect, useMemo, useState } from "react"
+import Link from "next/link"
+import {
+import StatusBadge from "@/components/ui/StatusBadge"
+import api from "@/lib/axios"
+API_HINTS: axios/api client calls
+AUTH_HINTS: role checks maybe present
+STATE_HINTS: useState, useEffect, loading handling, empty/no-data messaging
+RESPONSIVE_HINTS: Tailwind breakpoints used, constrained container layout
+---
+###FILE app/hotels/[slug]/page.tsx
+IMPORTS:
+import { useState, useEffect } from 'react'
+import { useParams } from 'next/navigation'
+import Link from 'next/link'
+import Header from '@/components/layout/Header/Header'
+import Footer from '@/components/layout/Footer/Footer'
+import type { FilledIconProps, IconProps } from '@/types/component-props'
+import type { Hotel } from '@/lib/hotels'
+import { useWishlist } from '@/contexts/WishlistContext'
+import HotelGallery from '@/components/hotel/HotelGallery'
+import HotelReviews from '@/components/hotel/HotelReviews'
+import MapSection from '@/components/hotel/MapSection'
+import api, { getApiErrorMessage } from '@/lib/axios'
+import {
+API_HINTS: axios/api client calls, service getter calls present
+AUTH_HINTS: role checks maybe present
+STATE_HINTS: useState, useEffect, loading handling, error handling, empty/no-data messaging
+RESPONSIVE_HINTS: Tailwind breakpoints used, constrained container layout
+---
+###FILE app/hotels/page.tsx
+IMPORTS:
+import { Suspense, useState, useMemo, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
+import Header from '@/components/layout/Header/Header'
+import Footer from '@/components/layout/Footer/Footer'
+import type { Hotel } from '@/lib/hotels'
+import SearchBar from '@/components/search/SearchBar'
+import { HotelFilters, FilterOptions } from '@/components/hotel/HotelFilters'
+import Image from 'next/image'
+import Link from 'next/link'
+import { MapPin, Star, Building2, LayoutGrid, List, ChevronDown, Wifi, Car, Waves, Dumbbell, Utensils, Sparkles, Shield, Headphones, BadgePercent, Heart, ArrowRight } from 'lucide-react'
+import { useWishlist } from '@/contexts/WishlistContext'
+import api from '@/lib/axios'
+API_HINTS: axios/api client calls, service getter calls present
+STATE_HINTS: useState, useEffect, loading handling, error handling, empty/no-data messaging
+RESPONSIVE_HINTS: Tailwind breakpoints used, constrained container layout
+---
+###FILE app/login/page.tsx
+IMPORTS:
+import Link from 'next/link';
+import { Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
+import LoginForm from '@/components/auth/LoginForm';
+API_HINTS: axios/api client calls
+AUTH_HINTS: role checks maybe present
+RESPONSIVE_HINTS: Tailwind breakpoints used, constrained container layout
+---
+###FILE app/my-bookings/page.tsx
+IMPORTS:
+import { useEffect, useMemo, useState } from "react"
+import Link from "next/link"
+import {
+import Header from "@/components/layout/Header/Header"
+import Footer from "@/components/layout/Footer/Footer"
+import { useAuth } from "@/contexts/AuthContext"
+import { Button } from "@/components/ui/Button"
+import { Card, CardContent } from "@/components/ui/Card"
+import type { BookingCategory, UnifiedBookingRecord } from "@/types/my-bookings"
+import api from "@/lib/axios"
+API_HINTS: axios/api client calls
+AUTH_HINTS: auth/session/redirect logic
+STATE_HINTS: useState, useEffect, loading handling, error handling, empty/no-data messaging
+RESPONSIVE_HINTS: Tailwind breakpoints used, constrained container layout
+---
+###FILE app/page.tsx
+IMPORTS:
+import Image from "next/image"
+import Link from "next/link"
+import { useState } from "react"
+import {
+import Header from "@/components/layout/Header/Header"
+import Footer from "@/components/layout/Footer/Footer"
+import AIChatWidget from "@/components/AIChatWidget"
+import SearchBar from "@/components/search/SearchBar"
+import HotelSlider from "@/components/hotel/HotelSlider"
+import CityFactsCarousel from "@/components/sections/CityFactsCarousel"
+import HomeFeaturedHotels from "@/components/sections/HomeFeaturedHotels"
+import HomeFeaturedTours from "@/components/sections/HomeFeaturedTours"
+STATE_HINTS: useState
+RESPONSIVE_HINTS: Tailwind breakpoints used, constrained container layout
+---
+###FILE app/posts/page.tsx
+IMPORTS:
+import { useState, useEffect } from 'react'
+import { userPosts } from '@/lib/userPosts'
+import { Heart, ChevronLeft, ChevronRight } from 'lucide-react'
+import Header from '@/components/layout/Header/Header'
+import Footer from '@/components/layout/Footer/Footer'
+API_HINTS: axios/api client calls, service getter calls present
+STATE_HINTS: useState, useEffect, loading handling
+RESPONSIVE_HINTS: Tailwind breakpoints used, constrained container layout
+---
+###FILE app/profile/page.tsx
+IMPORTS:
+import { useState, useEffect } from 'react'
+import Link from 'next/link'
+import Header from '@/components/layout/Header/Header'
+import Footer from '@/components/layout/Footer/Footer'
+import ToggleSwitch from '@/components/ui/ToggleSwitch'
+import SectionCard from '@/components/ui/SectionCard'
+import { Button } from '@/components/ui/Button'
+import { Card, CardContent } from '@/components/ui/Card'
+import { useAuth } from '@/contexts/AuthContext'
+import {
+import { fetchUserBookings, cancelUserBooking, type BookingRecord } from '@/lib/booking'
+import api, { getApiErrorMessage } from '@/lib/axios'
+import type {
+API_HINTS: axios/api client calls, service getter calls present, create* calls present, update* calls present, delete* calls present
+AUTH_HINTS: auth/session/redirect logic, role checks maybe present
+STATE_HINTS: useState, useEffect, loading handling, error handling, empty/no-data messaging
+RESPONSIVE_HINTS: Tailwind breakpoints used, constrained container layout
+---
+###FILE app/signup/page.tsx
+IMPORTS:
+import Link from 'next/link';
+import { Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
+import SignupForm from '@/components/auth/SignupForm';
+API_HINTS: axios/api client calls, service getter calls present
+AUTH_HINTS: role checks maybe present
+RESPONSIVE_HINTS: Tailwind breakpoints used, constrained container layout
+---
+###FILE app/terms/page.tsx
+IMPORTS:
+import Link from 'next/link';
+STATE_HINTS: error handling, empty/no-data messaging
+RESPONSIVE_HINTS: Tailwind breakpoints used, constrained container layout
+---
+###FILE app/tours/[slug]/chat/page.tsx
+IMPORTS:
+import type { FormEvent } from "react"
+import { useEffect, useMemo, useState } from "react"
+import Link from "next/link"
+import { useParams } from "next/navigation"
+import { io, type Socket } from "socket.io-client"
+import { ArrowLeft, Lock, MessageCircle, Send, Users } from "lucide-react"
+import Header from "@/components/layout/Header/Header"
+import Footer from "@/components/layout/Footer/Footer"
+import { useAuth } from "@/contexts/AuthContext"
+import api, { getApiErrorMessage } from "@/lib/axios"
+API_HINTS: axios/api client calls, service getter calls present
+AUTH_HINTS: auth/session/redirect logic, role checks maybe present
+STATE_HINTS: useState, useEffect, loading handling, error handling
+RESPONSIVE_HINTS: Tailwind breakpoints used, constrained container layout
+---
+###FILE app/tours/[slug]/page.tsx
+IMPORTS:
+import { useEffect, useMemo, useState } from "react"
+import Link from "next/link"
+import { useParams } from "next/navigation"
+import {
+import Header from "@/components/layout/Header/Header"
+import Footer from "@/components/layout/Footer/Footer"
+import { GroupBooking } from "@/components/tour/GroupBooking"
+import { TourCard } from "@/components/tour/TourCard"
+import { useAuth } from "@/contexts/AuthContext"
+import api from "@/lib/axios"
+import { tours, type Tour } from "@/lib/tours"
+API_HINTS: axios/api client calls, service getter calls present
+AUTH_HINTS: auth/session/redirect logic, role checks maybe present
+STATE_HINTS: useState, useEffect, loading handling, empty/no-data messaging
+RESPONSIVE_HINTS: Tailwind breakpoints used, constrained container layout
+---
+###FILE app/tours/page.tsx
+IMPORTS:
+import { useState, useMemo, useEffect } from 'react'
+import { tours as fallbackTours, type Tour } from '@/lib/tours'
+import { TourCard } from '@/components/tour/TourCard'
+import Header from '@/components/layout/Header/Header'
+import Footer from '@/components/layout/Footer/Footer'
+import { Search, SlidersHorizontal, LayoutGrid, List, Compass, Shield, Headphones, X } from 'lucide-react'
+import api from '@/lib/axios'
+API_HINTS: axios/api client calls
+STATE_HINTS: useState, useEffect, loading handling, empty/no-data messaging
+RESPONSIVE_HINTS: Tailwind breakpoints used, constrained container layout
+---
+###FILE app/wishlist/page.tsx
+IMPORTS:
+import { useWishlist } from '@/contexts/WishlistContext'
+import Header from '@/components/layout/Header/Header'
+import Footer from '@/components/layout/Footer/Footer'
+import Link from 'next/link'
+import Image from 'next/image'
+STATE_HINTS: empty/no-data messaging
+RESPONSIVE_HINTS: Tailwind breakpoints used, constrained container layout
+---

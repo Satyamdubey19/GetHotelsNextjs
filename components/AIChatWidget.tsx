@@ -94,7 +94,7 @@ export default function AIChatWidget() {
   return (
     <>
       {/* Floating button */}
-      <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
+      <div className="fixed bottom-24 right-3 z-50 flex flex-col items-end gap-3 md:bottom-6 md:right-6">
         {!open && (
           <div className="animate-fade-in rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-lg">
             Ask AI about hotels ✨
@@ -121,7 +121,7 @@ export default function AIChatWidget() {
 
       {/* Chat panel */}
       {open && (
-        <div className="fixed bottom-24 right-6 z-50 flex w-[22rem] flex-col rounded-[1.75rem] border border-slate-200/80 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.18)] sm:w-96" style={{ maxHeight: "min(560px, calc(100vh - 7rem))" }}>
+        <div className="fixed bottom-28 right-3 z-50 flex w-[calc(100vw-1.5rem)] max-w-[22rem] flex-col rounded-[1.75rem] border border-slate-200/80 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.18)] sm:right-6 sm:w-96 sm:max-w-none md:bottom-24" style={{ maxHeight: "min(560px, calc(100vh - 7rem))" }}>
           {/* Header */}
           <div className="relative overflow-hidden bg-gradient-to-br from-sky-500 to-indigo-600 px-5 py-4">
             <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-white/10" />

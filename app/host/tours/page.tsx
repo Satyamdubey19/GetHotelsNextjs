@@ -17,6 +17,7 @@ import {
   Users,
 } from "lucide-react"
 import StatusBadge from "@/components/ui/StatusBadge"
+import api from "@/lib/axios"
 
 type HostTour = {
   id: string
@@ -55,8 +56,9 @@ export default function HostToursDashboard() {
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await fetch("/api/tour?scope=mine", { cache: "no-store" })
-        const payload = await res.json()
+        const { data: payload } = await api.get("/tour?scope=mine", {
+          headers: { "Cache-Control": "no-store" },
+        })
         setTours(payload.data || [])
       } finally {
         setLoading(false)

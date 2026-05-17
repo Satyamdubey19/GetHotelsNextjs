@@ -126,6 +126,13 @@ function publicTourWhere(id: string) {
   }
 }
 
+async function getTourTravelerProfile(userId: string) {
+  return prisma.userProfile.findUnique({
+    where: { userId },
+    select: { gender: true },
+  })
+}
+
 export type TourInput = {
   slug: string
   title: string
@@ -175,6 +182,7 @@ export type TourBookingInput = {
   contactEmail?: string
   contactPhone?: string
   specialRequests?: string
+  departureBatchId?: string
 }
 
 export type VerifyTourPaymentInput = {
@@ -212,8 +220,19 @@ export async function getTourById(id: string, hostId: string) {
   })
 }
 
-export async function listPublicTours() {
-  const tours = await prisma.tour.findMany({
+function isTransientDatabaseError(error: unknown) {
+  const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase()
+  return (
+    message.includes("connection terminated") ||
+    message.includes("connection reset") ||
+    message.includes("connection ended") ||
+    message.includes("terminating connection") ||
+    message.includes("timeout expired")
+  )
+}
+
+async function queryPublicTours() {
+  return prisma.tour.findMany({
     where: { status: "ACTIVE", isActive: true, isApproved: true },
     include: {
       TourItineraryDay: { orderBy: { day: "asc" } },
@@ -221,9 +240,22 @@ export async function listPublicTours() {
     },
     orderBy: [{ totalBookings: "desc" }, { averageRating: "desc" }],
   })
-  console.log("tours:", tours);
+}
 
-  return tours.map(normalizeTourForPublic)
+export async function listPublicTours() {
+  try {
+    const tours = await queryPublicTours().catch(async (error) => {
+      if (!isTransientDatabaseError(error)) throw error
+      await new Promise((resolve) => setTimeout(resolve, 350))
+      return queryPublicTours()
+    })
+
+    return tours.map(normalizeTourForPublic)
+  } catch (error) {
+    if (!isTransientDatabaseError(error)) throw error
+    console.warn("GET /api/tour: using fallback tours after database connection drop")
+    return demoTours
+  }
 }
 
 export async function getPublicTourBySlug(slug: string) {
@@ -538,10 +570,7 @@ export async function checkTourJoinEligibility(userId: string, tourId: string) {
       where: { tourId: tour.id, userId, status: "PENDING" },
       select: { id: true, status: true },
     }),
-    prisma.userProfile.findUnique({
-      where: { userId },
-      select: { gender: true, trustScore: true, womenSafetyVerified: true },
-    }),
+    getTourTravelerProfile(userId),
   ])
 
   if (participant && !["REJECTED", "CANCELLED"].includes(participant.status)) {
@@ -552,8 +581,8 @@ export async function checkTourJoinEligibility(userId: string, tourId: string) {
   if (tour.womenOnly && profile?.gender !== "FEMALE") {
     throw new Error("This tour is only open to women travelers")
   }
-  if (tour.verifiedTravelersOnly && (profile?.trustScore ?? 0) <= 0) {
-    throw new Error("This tour requires a verified traveler profile")
+  if (tour.verifiedTravelersOnly && !profile) {
+    throw new Error("This tour requires a completed traveler profile")
   }
 
   return { tour, profile }
@@ -605,6 +634,12 @@ export async function approveTourJoinRequest(hostId: string, requestId: string) 
       },
     })
 
+    await tx.tourChatRoom.upsert({
+      where: { tourId: request.tourId },
+      create: { tourId: request.tourId, name: `${tour.title} group` },
+      update: {},
+    })
+
     return updated
   })
 }
@@ -626,6 +661,25 @@ export async function createTourBooking(userId: string, tourId: string, input: T
   const guestCount = Math.max(1, Math.trunc(input.guestCount ?? 1))
   const { tour } = await checkTourJoinEligibility(userId, tourId)
   if (guestCount > tour.availableSlots) throw new Error("Not enough tour slots available")
+  const batchId = input.departureBatchId?.startsWith("tour:") ? null : input.departureBatchId ?? null
+  const batchRows = batchId ? await prisma.$queryRaw<{
+    id: string
+    startDate: Date
+    endDate: Date
+    seatsLeft: number
+    basePrice: { toString(): string } | number
+    earlyBirdPrice: { toString(): string } | number | null
+    earlyBirdEndsAt: Date | null
+    status: string
+  }[]>`
+    SELECT "id", "startDate", "endDate", "seatsLeft", "basePrice", "earlyBirdPrice", "earlyBirdEndsAt", "status"
+    FROM "TourDepartureBatch"
+    WHERE "id" = ${batchId} AND "tourId" = ${tour.id}
+    LIMIT 1
+  ` : []
+  const batch = batchRows[0]
+  if (batchId && !batch) throw new Error("Selected departure is no longer available")
+  if (batch && (batch.status === "SOLD_OUT" || batch.seatsLeft < guestCount)) throw new Error("Selected departure is sold out")
 
   if (tour.joinApprovalRequired) {
     const approved = await prisma.tourParticipant.findUnique({
@@ -642,7 +696,10 @@ export async function createTourBooking(userId: string, tourId: string, input: T
     select: { name: true, email: true, phone: true },
   })
 
-  const subtotal = toMoney(Number(tour.pricePerPerson) * guestCount)
+  const unitPrice = batch
+    ? Number(batch.earlyBirdPrice && batch.earlyBirdEndsAt && batch.earlyBirdEndsAt > new Date() ? batch.earlyBirdPrice : batch.basePrice)
+    : Number(tour.pricePerPerson)
+  const subtotal = toMoney(unitPrice * guestCount)
   const taxes = toMoney(subtotal * TAX_RATE)
   const totalAmount = toMoney(subtotal + taxes)
   const platformFee = toMoney(totalAmount * PLATFORM_FEE_RATE)
@@ -655,8 +712,8 @@ export async function createTourBooking(userId: string, tourId: string, input: T
       userId,
       hostId: tour.hostId,
       tourId: tour.id,
-      checkIn: tour.startDate,
-      checkOut: addDays(tour.endDate, 1),
+      checkIn: batch?.startDate ?? tour.startDate,
+      checkOut: addDays(batch?.endDate ?? tour.endDate, 1),
       totalGuests: guestCount,
       adults: guestCount,
       children: 0,
@@ -688,7 +745,7 @@ export async function createTourBooking(userId: string, tourId: string, input: T
           type: "CREATED",
           title: "Tour booking created",
           message: "Complete payment to confirm your tour slot.",
-          metadata: { tourId: tour.id, guestCount },
+          metadata: { tourId: tour.id, guestCount, departureBatchId: batchId, unitPrice },
         },
       },
     },
@@ -701,6 +758,9 @@ export async function createTourBooking(userId: string, tourId: string, input: T
 }
 
 export async function createTourPaymentOrder(userId: string, bookingId: string) {
+  const razorpayKeyId = process.env.RAZORPAY_KEY_ID ?? process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID
+  if (!razorpayKeyId) throw new Error("Razorpay key id is not configured")
+
   const booking = await prisma.booking.findFirst({
     where: { id: bookingId, userId, tourId: { not: null }, status: "PENDING" },
     include: { Payment: true, Tour: { select: { title: true } } },
@@ -733,7 +793,7 @@ export async function createTourPaymentOrder(userId: string, bookingId: string) 
     orderId: order.id,
     amount: order.amount,
     currency: order.currency,
-    keyId: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ?? process.env.RAZORPAY_KEY_ID,
+    keyId: razorpayKeyId,
   }
 }
 
@@ -757,7 +817,7 @@ export async function confirmTourBooking(bookingId: string, providerPaymentId?: 
   const booking = await prisma.$transaction(async (tx) => {
     const existing = await tx.booking.findUnique({
       where: { id: bookingId },
-      include: { Tour: true, Payment: true },
+      include: { Tour: true, Payment: true, BookingTimeline: true },
     })
 
     if (!existing?.Tour || !existing.tourId) throw new Error("Tour booking not found")
@@ -765,13 +825,26 @@ export async function confirmTourBooking(bookingId: string, providerPaymentId?: 
     if (existing.status !== "PENDING") throw new Error("Booking cannot be confirmed")
     if (existing.Tour.availableSlots < existing.totalGuests) throw new Error("Not enough tour slots available")
 
-    await tx.tour.update({
-      where: { id: existing.Tour.id },
-      data: {
-        availableSlots: { decrement: existing.totalGuests },
-        totalBookings: { increment: 1 },
-      },
+    const slotUpdate = await tx.tour.updateMany({
+      where: { id: existing.Tour.id, availableSlots: { gte: existing.totalGuests } },
+      data: { availableSlots: { decrement: existing.totalGuests }, totalBookings: { increment: 1 } },
     })
+    if (slotUpdate.count !== 1) throw new Error("Not enough tour slots available")
+
+    const bookingMeta = existing.BookingTimeline.find((item) => item.type === "CREATED")?.metadata as { departureBatchId?: string } | null
+    if (bookingMeta?.departureBatchId) {
+      const batchUpdate = await tx.$executeRaw`
+        UPDATE "TourDepartureBatch"
+        SET "seatsLeft" = "seatsLeft" - ${existing.totalGuests},
+            "status" = CASE WHEN "seatsLeft" - ${existing.totalGuests} <= 0 THEN 'SOLD_OUT' ELSE "status" END,
+            "updatedAt" = CURRENT_TIMESTAMP
+        WHERE "id" = ${bookingMeta.departureBatchId}
+          AND "tourId" = ${existing.Tour.id}
+          AND "seatsLeft" >= ${existing.totalGuests}
+          AND "status" <> 'CANCELLED'
+      `
+      if (Number(batchUpdate) !== 1) throw new Error("Selected departure is sold out")
+    }
 
     await tx.payment.update({
       where: { bookingId: existing.id },
@@ -886,7 +959,6 @@ export async function listTourParticipants(userId: string, tourId: string) {
               languages: true,
               interests: true,
               travelStyle: true,
-              trustScore: true,
             },
           },
         },
@@ -895,16 +967,11 @@ export async function listTourParticipants(userId: string, tourId: string) {
   })
 }
 
-export async function getTourChatPreview(userId: string, tourId: string) {
-  await ensureDemoTourRecord(tourId)
-  const tour = await prisma.tour.findFirst({ where: { OR: [{ id: tourId }, { slug: tourId }] }, select: { id: true } })
-  if (!tour) throw new Error("Tour not found")
+export type TourChatAccessScope = "host-or-participant" | "participant"
 
-  const access = await prisma.tourParticipant.findUnique({
-    where: { tourId_userId: { tourId: tour.id, userId } },
-    select: { id: true },
-  })
-  if (!access) throw new Error("Join the tour to unlock group chat")
+export async function getTourChatPreview(userId: string, tourId: string, scope: TourChatAccessScope = "host-or-participant") {
+  await ensureDemoTourRecord(tourId)
+  const { tour } = await getActiveTourChatAccess(userId, tourId, scope)
 
   const room = await prisma.tourChatRoom.findUnique({
     where: { tourId: tour.id },
@@ -918,4 +985,72 @@ export async function getTourChatPreview(userId: string, tourId: string) {
   })
 
   return room ? { ...room, messages: room.messages.reverse() } : { tourId: tour.id, messages: [] }
+}
+
+async function getActiveTourChatAccess(userId: string, tourId: string, scope: TourChatAccessScope = "host-or-participant") {
+  const tour = await prisma.tour.findFirst({
+    where: { OR: [{ id: tourId }, { slug: tourId }] },
+    select: { id: true, hostId: true, title: true, tourStatus: true },
+  })
+  if (!tour) throw new Error("Tour not found")
+  if (["COMPLETED", "CANCELLED"].includes(tour.tourStatus)) {
+    throw new Error("Tour chat is closed because this tour is no longer active")
+  }
+
+  const [participant, host] = await Promise.all([
+    prisma.tourParticipant.findUnique({
+      where: { tourId_userId: { tourId: tour.id, userId } },
+      select: { id: true, status: true },
+    }),
+    prisma.host.findFirst({
+      where: { id: tour.hostId, userId },
+      select: { id: true },
+    }),
+  ])
+
+  const canChatAsParticipant = participant?.status === "JOINED"
+  const canChatAsHost = scope === "host-or-participant" && Boolean(host)
+  if (!canChatAsHost && !canChatAsParticipant) {
+    throw new Error("Join the tour to unlock group chat")
+  }
+
+  return { tour, participant }
+}
+
+export async function sendTourChatMessage(userId: string, tourId: string, message: string, scope: TourChatAccessScope = "host-or-participant") {
+  await ensureDemoTourRecord(tourId)
+  const cleanMessage = message.trim()
+  if (!cleanMessage) throw new Error("Message is required")
+  if (cleanMessage.length > 2000) throw new Error("Message is too long")
+
+  const { tour, participant } = await getActiveTourChatAccess(userId, tourId, scope)
+
+  return prisma.$transaction(async (tx) => {
+    const room = await tx.tourChatRoom.upsert({
+      where: { tourId: tour.id },
+      create: { tourId: tour.id, name: `${tour.title} group` },
+      update: {},
+    })
+
+    const created = await tx.tourMessage.create({
+      data: {
+        roomId: room.id,
+        senderId: userId,
+        participantId: participant?.id ?? null,
+        message: cleanMessage,
+        messageType: "TEXT",
+      },
+      include: { User: { select: { id: true, name: true } } },
+    })
+
+    await tx.tourChatRoom.update({
+      where: { id: room.id },
+      data: {
+        lastMessage: cleanMessage,
+        lastMessageAt: created.createdAt,
+      },
+    })
+
+    return created
+  })
 }

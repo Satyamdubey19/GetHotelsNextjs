@@ -11,6 +11,7 @@ import { useWishlist } from '@/contexts/WishlistContext'
 import HotelGallery from '@/components/hotel/HotelGallery'
 import HotelReviews from '@/components/hotel/HotelReviews'
 import MapSection from '@/components/hotel/MapSection'
+import api, { getApiErrorMessage } from '@/lib/axios'
 import {
   BadgeCheck,
   Banknote,
@@ -207,9 +208,7 @@ export default function HotelDetailPage() {
           params.set('checkIn', checkIn)
           params.set('checkOut', checkOut)
         }
-        const response = await fetch(`/api/hotel/${slug}${params.toString() ? `?${params.toString()}` : ''}`)
-        if (response.ok) {
-          const data = await response.json()
+        const { data } = await api.get(`/hotel/${slug}${params.toString() ? `?${params.toString()}` : ''}`)
           const raw = data.data
           const minPrice = raw.Room?.length
             ? Math.min(...raw.Room.map((r: { pricePerNight: number }) => r.pricePerNight))
@@ -235,9 +234,6 @@ export default function HotelDetailPage() {
           if (rooms.length > 0 && (!selectedRoom || !rooms.some((room) => room.id === selectedRoom))) {
             setSelectedRoom(rooms[0].id)
           }
-        } else {
-          console.error('Failed to fetch hotel data')
-        }
       } catch (error) {
         console.error('Error fetching hotel data:', error)
       }
@@ -365,10 +361,7 @@ export default function HotelDetailPage() {
     setBookingError('')
 
     try {
-      const response = await fetch('/api/booking', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const { data: result } = await api.post('/booking', {
           hotelId: hotel.id,
           roomId: selectedRoomData.id,
           checkIn,
@@ -381,19 +374,13 @@ export default function HotelDetailPage() {
           contactEmail,
           contactPhone,
           specialRequests,
-        }),
       })
-
-      const result = await response.json().catch(() => null)
-      if (!response.ok) {
-        throw new Error(result?.error ?? 'Room is not available for the selected dates')
-      }
 
       setBookingId(result?.data?.bookingCode ?? result?.data?.id ?? '')
       setBookingStep(3)
       setBookingConfirmed(true)
     } catch (error) {
-      setBookingError(error instanceof Error ? error.message : 'Could not create booking')
+      setBookingError(getApiErrorMessage(error, 'Could not create booking'))
     } finally {
       setBookingLoading(false)
     }

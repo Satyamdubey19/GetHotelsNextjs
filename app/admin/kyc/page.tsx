@@ -8,6 +8,7 @@ import StatusBadge from "@/components/ui/StatusBadge"
 import Spinner from "@/components/ui/Spinner"
 import { TablePageSkeleton } from "@/components/ui/loading-skeletons"
 import Modal from "@/components/ui/Modal"
+import api from "@/lib/axios"
 
 interface KYCApplication {
   id: string
@@ -52,11 +53,8 @@ export default function AdminKYCPage() {
   const fetchApplications = async () => {
     try {
       setLoading(true)
-      const response = await fetch(`/api/admin/kyc?status=${filterStatus}`)
-      if (response.ok) {
-        const data = await response.json()
-        setApplications(data.data || [])
-      }
+      const { data } = await api.get(`/admin/kyc?status=${filterStatus}`)
+      setApplications(data.data || [])
     } catch (error) {
       console.error("Error fetching applications:", error)
     } finally {
@@ -72,19 +70,10 @@ export default function AdminKYCPage() {
   const handleApprove = async (kycId: string) => {
     setProcessing(true)
     try {
-      const response = await fetch(`/api/admin/kyc/${kycId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "approve" }),
-      })
-
-      if (response.ok) {
-        showFeedback('success', "KYC approved successfully.")
-        fetchApplications()
-        setSelectedApp(null)
-      } else {
-        showFeedback('error', "Failed to approve KYC.")
-      }
+      await api.put(`/admin/kyc/${kycId}`, { action: "approve" })
+      showFeedback('success', "KYC approved successfully.")
+      fetchApplications()
+      setSelectedApp(null)
     } catch {
       showFeedback('error', "Network error. Please try again.")
     } finally {
@@ -100,20 +89,11 @@ export default function AdminKYCPage() {
 
     setProcessing(true)
     try {
-      const response = await fetch(`/api/admin/kyc/${kycId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "reject", rejectionReason }),
-      })
-
-      if (response.ok) {
-        showFeedback('success', "KYC rejected.")
-        fetchApplications()
-        setSelectedApp(null)
-        setRejectionReason("")
-      } else {
-        showFeedback('error', "Failed to reject KYC.")
-      }
+      await api.put(`/admin/kyc/${kycId}`, { action: "reject", rejectionReason })
+      showFeedback('success', "KYC rejected.")
+      fetchApplications()
+      setSelectedApp(null)
+      setRejectionReason("")
     } catch {
       showFeedback('error', "Network error. Please try again.")
     } finally {

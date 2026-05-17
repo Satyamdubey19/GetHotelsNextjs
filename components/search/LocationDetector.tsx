@@ -100,24 +100,24 @@ export default function LocationDetector() {
   const sourceLabel = source === 'gps' ? 'Live GPS' : source === 'ip' ? 'Approximate' : 'Location'
 
   return (
-    <div className="group flex items-center gap-2 rounded-full border border-slate-200/80 bg-white/90 px-2.5 py-1.5 text-sm text-slate-700 shadow-sm ring-1 ring-white/70 backdrop-blur">
-      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-sky-500 to-blue-600 text-white shadow-sm">
+    <div className="group inline-flex max-w-full min-w-0 items-center gap-2 overflow-hidden rounded-full border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-slate-700 shadow-[0_8px_24px_rgba(15,23,42,0.06)] transition hover:border-slate-300 hover:shadow-[0_10px_28px_rgba(15,23,42,0.08)]">
+      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-900 text-white shadow-sm">
         {loading ? (
-          <LoaderCircle className="h-4 w-4 animate-spin" />
+          <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
         ) : source === 'gps' ? (
-          <LocateFixed className="h-4 w-4" />
+          <LocateFixed className="h-3.5 w-3.5" />
         ) : source === 'ip' ? (
-          <Globe className="h-4 w-4" />
+          <Globe className="h-3.5 w-3.5" />
         ) : (
-          <MapPin className="h-4 w-4" />
+          <MapPin className="h-3.5 w-3.5" />
         )}
       </div>
 
       <div className="min-w-0 leading-tight">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+        <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-slate-400">
           {sourceLabel}
         </p>
-        <p className="max-w-[8rem] truncate font-medium text-slate-700 sm:max-w-[10rem]">
+        <p className="max-w-[7.5rem] truncate text-sm font-semibold text-slate-800 sm:max-w-[9.5rem]">
           {label}
         </p>
       </div>
@@ -127,9 +127,9 @@ export default function LocationDetector() {
         onClick={() => void getFreshLocation()}
         disabled={refreshing}
         aria-label="Refresh location"
-        className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
+        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-50 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
       >
-        <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} />
+        <RefreshCw className={`h-3 w-3 ${refreshing ? 'animate-spin' : ''}`} />
       </button>
     </div>
   )

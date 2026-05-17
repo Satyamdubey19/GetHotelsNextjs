@@ -2,6 +2,7 @@ const listingStatuses = new Set(["DRAFT", "PENDING_REVIEW", "ACTIVE", "PAUSED", 
 const kycStatuses = new Set(["PENDING", "APPROVED", "REJECTED", "NOT_SUBMITTED"])
 const payoutStatuses = new Set(["PENDING", "PROCESSING", "COMPLETED", "FAILED"])
 const accountStatuses = new Set(["ACTIVE", "SUSPENDED", "DELETED"])
+const bookingStatuses = new Set(["PENDING", "CONFIRMED", "CANCELLED", "COMPLETED", "NO_SHOW", "REFUND_PENDING"])
 
 function readObject(value: unknown) {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
@@ -97,5 +98,18 @@ export async function parseAccountUpdate(request: Request) {
   return {
     status,
     reason: readString(body, "reason"),
+  }
+}
+
+export async function parseBookingUpdate(request: Request) {
+  const body = readObject(await request.json())
+  const status = readString(body, "status")?.toUpperCase()
+  if (!status || !bookingStatuses.has(status)) {
+    throw new Error("Invalid booking status")
+  }
+
+  return {
+    status,
+    reason: readString(body, "overrideReason") || readString(body, "reason"),
   }
 }

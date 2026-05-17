@@ -6,6 +6,7 @@ import { Building2, CalendarCheck, Car, Compass, IndianRupee, Plus, Star, Ticket
 import { useAuth } from "@/contexts/AuthContext"
 import { HostDashboardSkeleton } from "@/components/ui/loading-skeletons"
 import { HostPage, HostPill, HostSection, HostStatCard } from "@/components/host/HostUI"
+import api from "@/lib/axios"
 import type {
   HostedProperty,
   HostDashboardStats as DashboardStats,
@@ -101,8 +102,8 @@ export default function HostDashboard() {
     try {
       const hostId = user?.id ?? "host-id-from-session"
       const [hotelResult, tourResult] = await Promise.allSettled([
-        fetch(`/api/host/hotels?hostId=${hostId}`),
-        fetch("/api/tour?scope=mine"),
+        api.get(`/host/hotels?hostId=${hostId}`),
+        api.get("/tour?scope=mine"),
       ])
 
       const hotelData = await parsePropertiesResponse(hotelResult, "hotel")
@@ -264,13 +265,13 @@ function MiniMetric({ label, value }: MiniMetricProps) {
 }
 
 async function parsePropertiesResponse(
-  result: PromiseSettledResult<Response>,
+  result: PromiseSettledResult<{ data: unknown }>,
   type: PropertyType
 ): Promise<HostedProperty[]> {
-  if (result.status !== "fulfilled" || !result.value.ok) return []
+  if (result.status !== "fulfilled") return []
 
   try {
-    const payload = await result.value.json()
+    const payload = result.value.data as { data?: Partial<HostedProperty>[] } | Partial<HostedProperty>[]
     const rows = Array.isArray(payload) ? payload : payload.data
     if (!Array.isArray(rows)) return []
     return rows.map((item, index) => normalizeProperty(item, type, index))

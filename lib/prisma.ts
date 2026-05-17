@@ -11,7 +11,14 @@ const globalForPrisma = globalThis as typeof globalThis & {
 }
 
 const pool =
-  globalForPrisma.prismaPool ?? new Pool({ connectionString })
+  globalForPrisma.prismaPool ??
+  new Pool({
+    connectionString,
+    max: 5,
+    idleTimeoutMillis: 30_000,
+    connectionTimeoutMillis: 10_000,
+    maxUses: 7_500,
+  })
 
 const prisma =
   globalForPrisma.prisma ??

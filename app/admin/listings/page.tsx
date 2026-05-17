@@ -8,6 +8,7 @@ import Input from '@/components/ui/Input';
 import Modal from '@/components/ui/Modal';
 import StatusBadge from '@/components/ui/StatusBadge';
 import { TablePageSkeleton } from '@/components/ui/loading-skeletons';
+import api, { getApiErrorMessage } from '@/lib/axios';
 
 type ListingRow = {
   id: string;
@@ -56,8 +57,9 @@ export default function AdminListingsPage() {
         status,
         search,
       });
-      const response = await fetch(`/api/admin/listings?${params.toString()}`, { cache: 'no-store' });
-      const payload = await response.json();
+      const { data: payload } = await api.get(`/admin/listings?${params.toString()}`, {
+        headers: { 'Cache-Control': 'no-store' },
+      });
       setListings(payload.data || []);
     } finally {
       setLoading(false);
@@ -123,10 +125,7 @@ export default function AdminListingsPage() {
   const updateListing = async (row: ListingRow, nextStatus?: string, isActive?: boolean) => {
     setSaving(true);
     try {
-      const response = await fetch(`/api/admin/listings/${row.type}/${row.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      await api.patch(`/admin/listings/${row.type}/${row.id}`, {
           status: nextStatus,
           isActive,
           title: selectedDraft?.title,
@@ -139,18 +138,13 @@ export default function AdminListingsPage() {
             isActive: room.isActive,
           })) : undefined,
           reason: decisionReason.trim() || undefined,
-        }),
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to update listing');
-      }
 
       closeListing();
       setDecisionReason('');
       await fetchListings();
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'Failed to update listing');
+      alert(getApiErrorMessage(error, 'Failed to update listing'));
     } finally {
       setSaving(false);
     }

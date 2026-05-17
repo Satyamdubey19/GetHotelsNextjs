@@ -6,6 +6,7 @@ import { Eye, Heart, MessageCircle, Search, SquarePen } from 'lucide-react';
 import Input from '@/components/ui/Input';
 import StatusBadge from '@/components/ui/StatusBadge';
 import { TablePageSkeleton } from '@/components/ui/loading-skeletons';
+import api from '@/lib/axios';
 
 type PostRow = {
   id: string;
@@ -40,8 +41,9 @@ export default function AdminPostsPage() {
     setLoading(true);
     try {
       const params = new URLSearchParams({ limit: '100', search });
-      const response = await fetch(`/api/admin/posts?${params.toString()}`, { cache: 'no-store' });
-      const payload = await response.json();
+      const { data: payload } = await api.get(`/admin/posts?${params.toString()}`, {
+        headers: { 'Cache-Control': 'no-store' },
+      });
       setPosts(payload.data || []);
     } finally {
       setLoading(false);

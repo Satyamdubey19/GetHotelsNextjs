@@ -52,6 +52,7 @@ import {
   Sparkles,
 } from 'lucide-react'
 import { fetchUserBookings, cancelUserBooking, type BookingRecord } from '@/lib/booking'
+import api, { getApiErrorMessage } from '@/lib/axios'
 import type {
   NotificationSettings,
   PrivacySettings,
@@ -213,16 +214,7 @@ export default function ProfilePage() {
   const handleSaveProfile = async () => {
     setIsSaving(true)
     try {
-      const response = await fetch('/api/auth/me', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(editedProfile),
-      })
-      const payload = await response.json()
-      if (!response.ok) {
-        throw new Error(payload.error ?? 'Failed to save profile')
-      }
+      await api.patch('/auth/me', editedProfile)
 
       setUserProfile(editedProfile)
       localStorage.setItem(getProfileStorageKey(authUser?.id), JSON.stringify(editedProfile))
@@ -234,7 +226,7 @@ export default function ProfilePage() {
       setIsEditMode(false)
       showSavedToast()
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'Failed to save profile')
+      alert(getApiErrorMessage(error, 'Failed to save profile'))
     } finally {
       setIsSaving(false)
     }

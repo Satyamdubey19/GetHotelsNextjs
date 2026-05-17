@@ -11,6 +11,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { MapPin, Star, Building2, LayoutGrid, List, ChevronDown, Wifi, Car, Waves, Dumbbell, Utensils, Sparkles, Shield, Headphones, BadgePercent, Heart, ArrowRight } from 'lucide-react'
 import { useWishlist } from '@/contexts/WishlistContext'
+import api from '@/lib/axios'
 
 type SortOption = 'relevance' | 'price-low' | 'price-high' | 'rating'
 type ViewMode = 'grid' | 'list'
@@ -322,8 +323,7 @@ function StaysPageContent() {
     navigator.geolocation.getCurrentPosition(
       async ({ coords }) => {
         try {
-          const res = await fetch(`/api/location/gps?lat=${coords.latitude}&lng=${coords.longitude}`)
-          const data = await res.json()
+          const { data } = await api.get(`/location/gps?lat=${coords.latitude}&lng=${coords.longitude}`)
           const city = data.city && data.city !== 'Current Location' ? data.city : null
           setCurrentLocation(city)
         } catch {
@@ -349,19 +349,17 @@ function StaysPageContent() {
         const query = searchQuery.trim()
         const city = filters.city.trim()
         const url = query
-          ? `/api/hotel?q=${encodeURIComponent(query)}`
+          ? `/hotel?q=${encodeURIComponent(query)}`
           : city
-            ? `/api/hotel?city=${encodeURIComponent(city)}`
+            ? `/hotel?city=${encodeURIComponent(city)}`
           : currentLocation
-            ? `/api/hotel?city=${encodeURIComponent(currentLocation)}`
-            : '/api/hotel'
-        const response = await fetch(url)
-        const result = await response.json()
+            ? `/hotel?city=${encodeURIComponent(currentLocation)}`
+            : '/hotel'
+        const { data: result } = await api.get(url)
         const hotelsFromDb = Array.isArray(result.data) ? (result.data as ApiHotel[]).map(mapApiHotel) : []
 
         if (hotelsFromDb.length === 0 && currentLocation && !query && !city) {
-          const fallbackResponse = await fetch('/api/hotel')
-          const fallbackResult = await fallbackResponse.json()
+          const { data: fallbackResult } = await api.get('/hotel')
           setHotels(Array.isArray(fallbackResult.data) ? (fallbackResult.data as ApiHotel[]).map(mapApiHotel) : [])
         } else {
           setHotels(hotelsFromDb)

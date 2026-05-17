@@ -20,6 +20,7 @@ import {
 } from "lucide-react"
 import Modal from "@/components/ui/Modal"
 import StatusBadge from "@/components/ui/StatusBadge"
+import api, { getApiErrorMessage } from "@/lib/axios"
 
 type TourListing = {
   id: string
@@ -67,8 +68,9 @@ export default function AdminTourModerationPage() {
     setLoading(true)
     try {
       const params = new URLSearchParams({ type: "tour", status, search, limit: "100" })
-      const res = await fetch(`/api/admin/listings?${params.toString()}`, { cache: "no-store" })
-      const payload = await res.json()
+      const { data: payload } = await api.get(`/admin/listings?${params.toString()}`, {
+        headers: { "Cache-Control": "no-store" },
+      })
       setRows(payload.data || [])
     } finally {
       setLoading(false)
@@ -91,22 +93,17 @@ export default function AdminTourModerationPage() {
   const updateListing = async (row: TourListing, nextStatus: string, isActive: boolean) => {
     setSaving(true)
     try {
-      const res = await fetch(`/api/admin/listings/tour/${row.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      await api.patch(`/admin/listings/tour/${row.id}`, {
           status: nextStatus,
           isActive,
           reason: reason.trim() || internalNotes.trim() || undefined,
-        }),
       })
-      if (!res.ok) throw new Error("Failed to update tour")
       setSelected(null)
       setReason("")
       setInternalNotes("")
       await load()
     } catch (error) {
-      alert(error instanceof Error ? error.message : "Failed to update tour")
+      alert(getApiErrorMessage(error, "Failed to update tour"))
     } finally {
       setSaving(false)
     }

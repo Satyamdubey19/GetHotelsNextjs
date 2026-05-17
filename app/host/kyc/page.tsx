@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { AlertTriangle, CheckCircle2, ChevronDown, Clock, FileText, ShieldCheck, Upload, User } from "lucide-react"
 import Spinner from "@/components/ui/Spinner"
+import api from "@/lib/axios"
 
 interface KYCData {
   id: string
@@ -49,19 +50,16 @@ export default function KYCPage() {
 
   const fetchKYC = async () => {
     try {
-      const response = await fetch("/api/host/kyc")
-      if (response.ok) {
-        const data = await response.json()
-        setKyc(data.kyc)
-        if (data.kyc) {
-          setFormData(prev => ({
-            ...prev,
-            firstName: data.kyc.firstName,
-            lastName: data.kyc.lastName,
-            idType: data.kyc.idType,
-            idNumber: data.kyc.idNumber,
-          }))
-        }
+      const { data } = await api.get("/host/kyc")
+      setKyc(data.kyc)
+      if (data.kyc) {
+        setFormData(prev => ({
+          ...prev,
+          firstName: data.kyc.firstName,
+          lastName: data.kyc.lastName,
+          idType: data.kyc.idType,
+          idNumber: data.kyc.idNumber,
+        }))
       }
     } catch (error) {
       console.error("Error fetching KYC:", error)
@@ -91,15 +89,8 @@ export default function KYCPage() {
     setSubmitting(true)
 
     try {
-      const response = await fetch("/api/host/kyc", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
-      })
-
-      if (response.ok) {
-        void fetchKYC()
-      }
+      await api.post("/host/kyc", formData)
+      void fetchKYC()
     } catch (error) {
       console.error("Error submitting KYC:", error)
     } finally {

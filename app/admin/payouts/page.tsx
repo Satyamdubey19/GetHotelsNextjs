@@ -10,6 +10,7 @@ import Spinner from '@/components/ui/Spinner';
 import { TablePageSkeleton } from '@/components/ui/loading-skeletons';
 import FilterTabs from '@/components/ui/FilterTabs';
 import Modal from '@/components/ui/Modal';
+import api, { getApiErrorMessage } from '@/lib/axios';
 
 interface Payout {
   id: string;
@@ -56,17 +57,10 @@ export default function AdminPayoutsPage() {
   const fetchPayouts = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/admin/payouts');
-      if (!response.ok) {
-        if (response.status === 401) {
-          router.push('/login');
-          return;
-        }
-        throw new Error('Failed to fetch payouts');
-      }
-      const data = await response.json();
+      const { data } = await api.get('/admin/payouts');
       setPayouts(data);
     } catch (error) {
+      if (getApiErrorMessage(error).includes('401')) router.push('/login');
       console.error('Error fetching payouts:', error);
     } finally {
       setLoading(false);
@@ -102,19 +96,11 @@ export default function AdminPayoutsPage() {
 
     setProcessingId(selectedPayout.id);
     try {
-      const response = await fetch(`/api/admin/payouts/${selectedPayout.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      await api.put(`/admin/payouts/${selectedPayout.id}`, {
           status: newStatus,
           transactionId: newStatus === 'completed' ? transactionId.trim() : undefined,
           failureReason: newStatus === 'failed' ? failureReason.trim() : undefined,
-        }),
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to update payout');
-      }
 
       showFeedback('success', `Payout moved to ${newStatus.toUpperCase()}`);
       setShowProcessModal(false);

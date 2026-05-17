@@ -1127,6 +1127,7 @@ model User {
   Booking            Booking[]
   TourParticipant    TourParticipant[]
   SentMessages       TourMessage[]
+  SeenTourMessages   TourMessageSeen[]
   TravelPreferences  UserTravelPreference?
   ReportedTravelers  TravelerReport[]      @relation("Reporter")
   ReceivedReports    TravelerReport[]      @relation("ReportedUser")
@@ -1228,17 +1229,42 @@ model TourJoinRequest {
 
   createdAt DateTime @default(now())
 }
+model TourMessageSeen {
+  id String @id @default(uuid())
+
+  messageId String
+
+  userId String
+
+  seenAt DateTime @default(now())
+
+  Message TourMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  User User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId])
+}
 
 model TourChatRoom {
   id String @id @default(uuid())
 
   tourId String @unique
 
-  createdAt DateTime      @default(now())
-  name      String?
-  imageUrl  String?
-  Tour      Tour          @relation(fields: [tourId], references: [id])
-  messages  TourMessage[]
+  name String?
+
+  imageUrl String?
+
+  isActive Boolean @default(true)
+
+  lastMessage String?
+
+  lastMessageAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  Tour Tour @relation(fields: [tourId], references: [id])
+
+  messages TourMessage[]
 }
 
 enum MessageType {
@@ -1264,13 +1290,25 @@ model TourMessage {
 
   createdAt DateTime @default(now())
 
+  deletedAt DateTime?
+
+  isEdited Boolean @default(false)
+
+  editedAt DateTime?
+
+  replyToId String?
+
   TourChatRoom TourChatRoom @relation(fields: [roomId], references: [id])
 
-  User        User             @relation(fields: [senderId], references: [id])
-  deletedAt   DateTime?
-  isEdited    Boolean          @default(false)
-  editedAt    DateTime?
+  User User @relation(fields: [senderId], references: [id])
+
   Participant TourParticipant? @relation(fields: [participantId], references: [id])
+
+  SeenBy TourMessageSeen[]
+
+  @@index([roomId, createdAt])
+
+  @@index([senderId])
 }
 
 model UserTravelPreference {
@@ -1348,6 +1386,123 @@ model TourWaitlist {
 
   User User @relation(fields: [userId], references: [id])
   Tour Tour @relation(fields: [tourId], references: [id])
+}
+
+model TourBooking {
+  id              String    @id @default(uuid())
+  bookingCode     String    @unique
+  userId          String
+  hostId          String
+  tourId          String
+  batchId         String?
+  legacyBookingId String?   @unique
+  status          String    @default("PENDING")
+  paymentStatus   String    @default("PENDING")
+  travelersCount  Int       @default(1)
+  confirmedCount  Int       @default(0)
+  waitlistedCount Int       @default(0)
+  unitPrice       Decimal   @db.Decimal(10, 2)
+  subtotal        Decimal   @db.Decimal(10, 2)
+  taxes           Decimal   @default(0) @db.Decimal(10, 2)
+  discount        Decimal   @default(0) @db.Decimal(10, 2)
+  totalAmount     Decimal   @db.Decimal(10, 2)
+  currency        String    @default("INR")
+  expiresAt       DateTime?
+  confirmedAt     DateTime?
+  cancelledAt     DateTime?
+  deletedAt       DateTime?
+  metadata        Json?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([tourId, status])
+  @@index([batchId, status])
+  @@index([hostId, status])
+}
+
+model TourTraveler {
+  id                    String    @id @default(uuid())
+  tourBookingId         String
+  userId                String?
+  fullName              String
+  normalizedName        String?
+  age                   Int?
+  dob                   DateTime?
+  aadhaarHash           String?
+  aadhaarLast4          String?
+  gender                String?
+  email                 String?
+  phone                 String?
+  emergencyContactName  String?
+  emergencyContactPhone String?
+  country               String?
+  foodPreference        String?
+  medicalNotes          String?
+  bloodGroup            String?
+  idType                String?
+  idUploadUrl           String?
+  relation              String?
+  seatPreference        String?
+  status                String    @default("PENDING")
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([tourBookingId, status])
+  @@index([email, phone])
+  @@index([aadhaarHash])
+  @@index([normalizedName, age])
+  @@index([normalizedName, dob])
+}
+
+model WaitlistQueue {
+  id            String    @id @default(uuid())
+  tourId        String
+  batchId       String?
+  tourBookingId String    @unique
+  userId        String
+  groupSize     Int       @default(1)
+  position      Int
+  status        String    @default("WAITLISTED")
+  promotedAt    DateTime?
+  expiresAt     DateTime?
+  declinedAt    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([tourId, status, position])
+}
+
+model TourCancellation {
+  id            String    @id @default(uuid())
+  tourBookingId String
+  travelerId    String?
+  cancelledById String
+  scope         String    @default("BOOKING")
+  reason        String?
+  refundPercent Int       @default(0)
+  refundAmount  Decimal   @default(0) @db.Decimal(10, 2)
+  status        String    @default("REQUESTED")
+  createdAt     DateTime  @default(now())
+  processedAt   DateTime?
+
+  @@index([tourBookingId, status])
+}
+
+model Refund {
+  id               String    @id @default(uuid())
+  tourBookingId    String
+  paymentId        String?
+  amount           Decimal   @db.Decimal(10, 2)
+  currency         String    @default("INR")
+  status           String    @default("PENDING")
+  reason           String?
+  providerRefundId String?
+  failureReason    String?
+  createdAt        DateTime  @default(now())
+  processedAt      DateTime?
+
+  @@index([tourBookingId, status])
 }
 
 enum AccountStatus {

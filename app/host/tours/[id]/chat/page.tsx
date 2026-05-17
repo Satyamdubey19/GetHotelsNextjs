@@ -1,15 +1,126 @@
 "use client"
 
+import type { FormEvent } from "react"
+import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
+import { useParams } from "next/navigation"
+import { io, type Socket } from "socket.io-client"
 import { ArrowLeft, Bell, ImageIcon, Megaphone, MicOff, MoreHorizontal, Paperclip, Pin, Send, Shield, Trash2, Users } from "lucide-react"
+import { useAuth } from "@/contexts/AuthContext"
+import api, { getApiErrorMessage } from "@/lib/axios"
 
-const messages = [
-  { id: 1, name: "Host", type: "SYSTEM", text: "Welcome call scheduled for Friday at 7 PM.", time: "09:20" },
-  { id: 2, name: "Aarohi", type: "TEXT", text: "Can we confirm the pickup point near Mall Road?", time: "09:34" },
-  { id: 3, name: "Kabir", type: "TEXT", text: "Sharing my arrival time by evening.", time: "10:05" },
-]
+type ChatMessage = {
+  id: string
+  message: string | null
+  messageType: "TEXT" | "IMAGE" | "SYSTEM"
+  createdAt: string
+  User?: { id?: string; name: string }
+}
+
+function formatTime(value: string) {
+  return new Intl.DateTimeFormat("en-IN", {
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(value))
+}
 
 export default function TourChatPage() {
+  const params = useParams()
+  const tourId = typeof params.id === "string" ? params.id : ""
+  const { user, loading } = useAuth()
+  const [messages, setMessages] = useState<ChatMessage[]>([])
+  const [roomName, setRoomName] = useState("Tour community")
+  const [draft, setDraft] = useState("")
+  const [socket, setSocket] = useState<Socket | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isSending, setIsSending] = useState(false)
+  const [error, setError] = useState("")
+
+  const socketUrl = useMemo(
+    () => process.env.NEXT_PUBLIC_SOCKET_URL ?? "http://localhost:3001",
+    [],
+  )
+
+  useEffect(() => {
+    if (!loading && !user) {
+      setIsLoading(false)
+      setError("Please log in as the tour host to open chat")
+      return
+    }
+    if (!tourId || loading || !user?.id) return
+
+    let ignore = false
+
+    const loadChat = async () => {
+      setIsLoading(true)
+      setError("")
+      try {
+        const { data: payload } = await api.get(`/tour/${tourId}/chat`, {
+          headers: { "Cache-Control": "no-store" },
+        })
+        if (!ignore) {
+          setRoomName(payload?.data?.name ?? "Tour community")
+          setMessages(Array.isArray(payload?.data?.messages) ? payload.data.messages : [])
+        }
+      } catch (chatError) {
+        if (!ignore) setError(getApiErrorMessage(chatError, "Could not load chat"))
+      } finally {
+        if (!ignore) setIsLoading(false)
+      }
+    }
+
+    void loadChat()
+
+    const nextSocket = io(socketUrl, {
+      withCredentials: true,
+      transports: ["websocket", "polling"],
+    })
+
+    nextSocket.emit("tour:join", { tourId })
+
+    nextSocket.on("connect", () => {
+      nextSocket.emit("tour:join", { tourId })
+    })
+
+    nextSocket.on("tour:message:new", (message: ChatMessage) => {
+      setMessages((current) => current.some((item) => item.id === message.id) ? current : [...current, message])
+    })
+
+    nextSocket.on("tour:message:error", (payload: { error?: string }) => {
+      setError(payload.error ?? "Message failed")
+    })
+
+    setSocket(nextSocket)
+
+    return () => {
+      ignore = true
+      nextSocket.disconnect()
+      setSocket(null)
+    }
+  }, [loading, socketUrl, tourId, user?.id])
+
+  const sendMessage = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const message = draft.trim()
+    if (!tourId || !user?.id || !message || isSending) return
+
+    setIsSending(true)
+    setError("")
+    try {
+      if (socket?.connected) {
+        socket.emit("tour:message:send", { tourId, userId: user.id, message })
+      } else {
+        const { data: payload } = await api.post(`/tour/${tourId}/chat`, { message })
+        if (payload?.data) setMessages((current) => [...current, payload.data])
+      }
+      setDraft("")
+    } catch (chatError) {
+      setError(getApiErrorMessage(chatError, "Could not send message"))
+    } finally {
+      setIsSending(false)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-slate-50/70 px-4 py-6 sm:px-6 lg:px-8">
       <div className="mx-auto grid max-w-7xl gap-5 lg:grid-cols-[300px_1fr_320px]">
@@ -33,8 +144,8 @@ export default function TourChatPage() {
             <div className="flex items-center gap-3">
               <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-cyan-50 text-cyan-700"><Users className="h-5 w-5" /></div>
               <div>
-                <p className="font-black text-slate-950">Manali community group</p>
-                <p className="text-xs font-semibold text-slate-500">18 participants · 3 pending approvals</p>
+                <p className="font-black text-slate-950">{roomName}</p>
+                <p className="text-xs font-semibold text-slate-500">{socket?.connected ? "Live chat connected" : "Live chat reconnecting"}</p>
               </div>
             </div>
             <button className="rounded-2xl bg-cyan-700 px-4 py-2 text-sm font-black text-white hover:bg-cyan-800"><Megaphone className="mr-2 inline h-4 w-4" />Announce</button>
@@ -44,23 +155,40 @@ export default function TourChatPage() {
             <div className="rounded-2xl border border-cyan-200 bg-cyan-50 p-4 text-sm font-semibold text-cyan-900">
               <Pin className="mr-2 inline h-4 w-4" />Pinned: Carry original ID, warm layers, and arrive 20 minutes before pickup.
             </div>
-            {messages.map((message) => (
-              <div key={message.id} className={`max-w-[78%] rounded-2xl p-4 shadow-sm ${message.name === "Host" ? "bg-slate-950 text-white" : "bg-white text-slate-800"}`}>
-                <div className="flex items-center justify-between gap-4">
-                  <p className="text-xs font-black uppercase tracking-[0.16em] opacity-70">{message.name}</p>
-                  <p className="text-xs opacity-60">{message.time}</p>
+            {isLoading ? (
+              <p className="rounded-2xl bg-white p-4 text-sm font-semibold text-slate-600">Loading chat...</p>
+            ) : error && messages.length === 0 ? (
+              <p className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-900">{error}</p>
+            ) : messages.length === 0 ? (
+              <p className="rounded-2xl bg-white p-4 text-sm font-semibold text-slate-600">Chat is ready. New group messages will appear here.</p>
+            ) : (
+              messages.map((message) => (
+                <div key={message.id} className={`max-w-[78%] rounded-2xl p-4 shadow-sm ${message.User?.id === user?.id ? "ml-auto bg-slate-950 text-white" : "bg-white text-slate-800"}`}>
+                  <div className="flex items-center justify-between gap-4">
+                    <p className="text-xs font-black uppercase tracking-[0.16em] opacity-70">{message.User?.name ?? "Traveler"}</p>
+                    <p className="text-xs opacity-60">{formatTime(message.createdAt)}</p>
+                  </div>
+                  <p className="mt-2 text-sm font-medium leading-6">{message.message ?? "Shared an update."}</p>
                 </div>
-                <p className="mt-2 text-sm font-medium leading-6">{message.text}</p>
-              </div>
-            ))}
+              ))
+            )}
           </div>
 
           <div className="border-t border-slate-200 p-4">
-            <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white p-2">
-              <button className="flex h-10 w-10 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100"><Paperclip className="h-4 w-4" /></button>
-              <input placeholder="Write a message or announcement" className="flex-1 bg-transparent px-2 text-sm font-semibold outline-none" />
-              <button className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-950 text-white hover:bg-cyan-700"><Send className="h-4 w-4" /></button>
-            </div>
+            {error && messages.length > 0 ? <p className="mb-2 text-sm font-semibold text-amber-700">{error}</p> : null}
+            <form onSubmit={sendMessage} className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white p-2">
+              <button type="button" className="flex h-10 w-10 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100"><Paperclip className="h-4 w-4" /></button>
+              <input
+                value={draft}
+                onChange={(event) => setDraft(event.target.value)}
+                disabled={loading || !user || isSending || Boolean(error && messages.length === 0)}
+                placeholder="Write a message or announcement"
+                className="flex-1 bg-transparent px-2 text-sm font-semibold outline-none disabled:text-slate-400"
+              />
+              <button disabled={!draft.trim() || loading || !user || isSending || Boolean(error && messages.length === 0)} className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-950 text-white hover:bg-cyan-700 disabled:bg-slate-300" aria-label="Send message">
+                <Send className="h-4 w-4" />
+              </button>
+            </form>
           </div>
         </main>
 
@@ -76,15 +204,15 @@ export default function TourChatPage() {
             ].map((action) => {
               const Icon = action.icon
               return (
-              <button key={action.label} className="flex w-full items-center gap-3 rounded-2xl border border-slate-200 px-4 py-3 text-sm font-black text-slate-700 hover:bg-slate-50">
-                <Icon className="h-4 w-4 text-cyan-700" />
-                {action.label}
-              </button>
+                <button key={action.label} className="flex w-full items-center gap-3 rounded-2xl border border-slate-200 px-4 py-3 text-sm font-black text-slate-700 hover:bg-slate-50">
+                  <Icon className="h-4 w-4 text-cyan-700" />
+                  {action.label}
+                </button>
               )
             })}
           </div>
           <div className="mt-6 rounded-2xl bg-amber-50 p-4 text-sm font-semibold leading-6 text-amber-800">
-            2 messages mention pickup changes. Review before publishing the next announcement.
+            Keep group updates short and confirm route or pickup changes before posting.
           </div>
         </aside>
       </div>

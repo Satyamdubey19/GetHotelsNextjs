@@ -10,6 +10,7 @@ import { TablePageSkeleton } from '@/components/ui/loading-skeletons';
 import FilterTabs from '@/components/ui/FilterTabs';
 import Modal from '@/components/ui/Modal';
 import type { AdminBooking as Booking } from '@/types/admin';
+import api, { getApiErrorMessage } from '@/lib/axios';
 
 export default function AdminBookingsPage() {
   const router = useRouter();
@@ -40,17 +41,10 @@ export default function AdminBookingsPage() {
   const fetchBookings = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/admin/bookings');
-      if (!response.ok) {
-        if (response.status === 401) {
-          router.push('/login');
-          return;
-        }
-        throw new Error('Failed to fetch bookings');
-      }
-      const data = await response.json();
+      const { data } = await api.get('/admin/bookings');
       setBookings(data.data || []);
     } catch (error) {
+      if (getApiErrorMessage(error).includes('401')) router.push('/login');
       console.error('Error fetching bookings:', error);
     } finally {
       setLoading(false);
@@ -78,18 +72,10 @@ export default function AdminBookingsPage() {
 
     setOverriding(true);
     try {
-      const response = await fetch(`/api/admin/bookings/${selectedBooking.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      await api.patch(`/admin/bookings/${selectedBooking.id}`, {
           status: newStatus.toUpperCase(),
           overrideReason: overrideReason.trim(),
-        }),
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to override booking');
-      }
 
       showFeedback('success', 'Booking overridden successfully.');
       setShowOverrideModal(false);

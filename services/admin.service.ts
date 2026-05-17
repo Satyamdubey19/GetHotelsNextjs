@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma"
+import type { BookingEventType, BookingStatus } from "@prisma/client"
 import type { AdminSession } from "@/utils/admin-auth"
 import type { ListQuery } from "@/utils/admin-query"
 
@@ -18,6 +19,10 @@ type AdminListingUpdateInput = {
     isActive?: boolean
   }[]
 }
+type AdminBookingUpdateInput = {
+  status: string
+  reason?: string
+}
 
 function money(value: unknown) {
   return Number(value ?? 0)
@@ -25,6 +30,14 @@ function money(value: unknown) {
 
 function normalizeQuery(value: string) {
   return value.trim().toLowerCase()
+}
+
+function toBookingEventType(status: BookingStatus): BookingEventType {
+  if (status === "CONFIRMED") return "CONFIRMED"
+  if (status === "CANCELLED") return "CANCELLED"
+  if (status === "COMPLETED") return "COMPLETED"
+  if (status === "NO_SHOW") return "NO_SHOW"
+  return "CREATED"
 }
 
 async function writeAuditLog(admin: AdminSession, action: string, entity: EntityType, entityId: string, oldData?: unknown, newData?: unknown) {
@@ -40,7 +53,7 @@ async function writeAuditLog(admin: AdminSession, action: string, entity: Entity
   })
 }
 
-async function notifyUser(userId: string, title: string, message: string, type: "SYSTEM" | "KYC_APPROVED" | "KYC_REJECTED" | "HOST_APPROVED" | "HOST_REJECTED" | "BOOKING_CANCELLED" | "PAYOUT_PROCESSED" | "PAYOUT_FAILED", data?: unknown) {
+async function notifyUser(userId: string, title: string, message: string, type: "SYSTEM" | "KYC_APPROVED" | "KYC_REJECTED" | "HOST_APPROVED" | "HOST_REJECTED" | "BOOKING_CONFIRMED" | "BOOKING_CANCELLED" | "PAYOUT_PROCESSED" | "PAYOUT_FAILED", data?: unknown) {
   await prisma.notification.create({
     data: {
       userId,
@@ -143,6 +156,155 @@ export async function getAdminDashboard() {
       href: `/admin/${log.entity.toLowerCase() === "user" ? "users" : log.entity.toLowerCase()}`,
     })),
   }
+}
+
+export async function listAdminBookings(query: ListQuery) {
+  const search = normalizeQuery(query.search)
+  const bookings = await prisma.booking.findMany({
+    orderBy: { createdAt: "desc" },
+    include: {
+      User: { select: { name: true, email: true } },
+      Host: { include: { User: { select: { name: true } } } },
+      Hotel: { select: { title: true } },
+      Tour: { select: { title: true } },
+      BookingRoom: {
+        include: {
+          Room: { select: { availableRooms: true, totalRooms: true } },
+        },
+      },
+    },
+  })
+
+  const filtered = bookings
+    .filter((booking) => !query.status || query.status === "all" || booking.status === query.status.toUpperCase())
+    .filter((booking) => {
+      if (!search) return true
+      const values = [
+        booking.bookingCode,
+        booking.User.name,
+        booking.User.email,
+        booking.contactName,
+        booking.contactEmail,
+        booking.Hotel?.title ?? "",
+        booking.Tour?.title ?? "",
+        booking.Host.businessName ?? booking.Host.User.name,
+      ]
+      return values.some((value) => value.toLowerCase().includes(search))
+    })
+
+  return {
+    total: filtered.length,
+    rows: filtered.slice(query.skip, query.skip + query.limit).map((booking) => ({
+      id: booking.id,
+      code: booking.bookingCode,
+      guestName: booking.contactName || booking.User.name,
+      guestEmail: booking.contactEmail || booking.User.email,
+      hotelName: booking.Hotel?.title,
+      tourName: booking.Tour?.title,
+      hostName: booking.Host.businessName ?? booking.Host.User.name,
+      checkInDate: booking.checkIn?.toISOString(),
+      checkOutDate: booking.checkOut?.toISOString(),
+      startDate: booking.checkIn?.toISOString(),
+      endDate: booking.checkOut?.toISOString(),
+      totalPrice: money(booking.totalAmount),
+      status: booking.status.toLowerCase(),
+      isOverridden: false,
+      rooms: booking.BookingRoom.map((room) => ({
+        id: room.id,
+        name: room.roomName,
+        quantity: room.quantity,
+        availableRooms: room.Room.availableRooms,
+        bookedRooms: Math.max(0, room.Room.totalRooms - room.Room.availableRooms),
+      })),
+      createdAt: booking.createdAt.toISOString(),
+    })),
+  }
+}
+
+export async function updateAdminBooking(id: string, admin: AdminSession, input: AdminBookingUpdateInput) {
+  const nextStatus = input.status as BookingStatus
+  const before = await prisma.booking.findUnique({
+    where: { id },
+    include: { User: true, Payment: true, InventoryReservation: true, Tour: true },
+  })
+  if (!before) throw new Error("Booking not found")
+
+  const booking = await prisma.$transaction(async (tx) => {
+    if (nextStatus === "CONFIRMED") {
+      await tx.inventoryReservation.updateMany({
+        where: { bookingId: id, status: "ACTIVE" },
+        data: { status: "CONFIRMED" },
+      })
+
+      if (before.tourId && before.Tour) {
+        await tx.tourParticipant.upsert({
+          where: { tourId_userId: { tourId: before.tourId, userId: before.userId } },
+          create: {
+            tourId: before.tourId,
+            userId: before.userId,
+            bookingId: before.id,
+            status: "JOINED",
+            isHostApproved: true,
+          },
+          update: {
+            bookingId: before.id,
+            status: "JOINED",
+            isHostApproved: true,
+            cancelledAt: null,
+          },
+        })
+
+        await tx.tourChatRoom.upsert({
+          where: { tourId: before.tourId },
+          create: { tourId: before.tourId, name: `${before.Tour.title} group` },
+          update: {},
+        })
+      }
+    }
+
+    if (nextStatus === "CANCELLED") {
+      await tx.inventoryReservation.updateMany({
+        where: { bookingId: id, status: { in: ["ACTIVE", "CONFIRMED"] } },
+        data: { status: "CANCELLED" },
+      })
+
+      if (before.tourId) {
+        await tx.tourParticipant.updateMany({
+          where: { bookingId: before.id, tourId: before.tourId },
+          data: { status: "CANCELLED", cancelledAt: new Date() },
+        })
+      }
+    }
+
+    return tx.booking.update({
+      where: { id },
+      data: {
+        status: nextStatus,
+        cancelledAt: nextStatus === "CANCELLED" ? new Date() : before.cancelledAt,
+        cancellationReason: nextStatus === "CANCELLED" ? input.reason ?? "Cancelled by admin" : before.cancellationReason,
+        BookingTimeline: {
+          create: {
+            type: toBookingEventType(nextStatus),
+            title: `Admin marked booking ${nextStatus.toLowerCase().replace("_", " ")}`,
+            message: input.reason ?? "Booking status updated by admin.",
+            metadata: { adminId: admin.id, previousStatus: before.status, nextStatus },
+          },
+        },
+      },
+      include: { Hotel: true, Tour: true, User: true },
+    })
+  })
+
+  await writeAuditLog(admin, `BOOKING_${nextStatus}`, "BOOKING", id, before, input)
+  await notifyUser(
+    before.userId,
+    "Booking status updated",
+    `Your booking ${before.bookingCode} is now ${nextStatus.toLowerCase().replace("_", " ")}.`,
+    nextStatus === "CANCELLED" ? "BOOKING_CANCELLED" : nextStatus === "CONFIRMED" ? "BOOKING_CONFIRMED" : "SYSTEM",
+    { bookingId: id, bookingCode: before.bookingCode, reason: input.reason },
+  )
+
+  return booking
 }
 
 export async function listAdminUsers(query: ListQuery) {

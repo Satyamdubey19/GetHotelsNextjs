@@ -98,10 +98,6 @@ ALTER TYPE "PropertyType" ADD VALUE 'GUESTHOUSE';
 -- AlterEnum
 BEGIN;
 CREATE TYPE "RoomType_new" AS ENUM ('STANDARD', 'DELUXE', 'PREMIUM', 'SUITE', 'FAMILY', 'EXECUTIVE');
-ALTER TABLE "Room" ALTER COLUMN "type" TYPE "RoomType_new" USING ("type"::text::"RoomType_new");
-ALTER TYPE "RoomType" RENAME TO "RoomType_old";
-ALTER TYPE "RoomType_new" RENAME TO "RoomType";
-DROP TYPE "public"."RoomType_old";
 COMMIT;
 
 -- DropForeignKey
@@ -179,6 +175,13 @@ ALTER COLUMN "hostId" SET DATA TYPE TEXT,
 ALTER COLUMN "updatedAt" DROP DEFAULT,
 ADD CONSTRAINT "Hotel_pkey" PRIMARY KEY ("id");
 DROP SEQUENCE "Hotel_id_seq";
+
+-- AlterEnum
+BEGIN;
+ALTER TYPE "RoomType" RENAME TO "RoomType_old";
+ALTER TYPE "RoomType_new" RENAME TO "RoomType";
+DROP TYPE "public"."RoomType_old";
+COMMIT;
 
 -- AlterTable
 ALTER TABLE "User" DROP CONSTRAINT "User_pkey",

@@ -5,6 +5,7 @@ import { ArrowDownToLine, CreditCard, IndianRupee, Receipt, TrendingUp, X } from
 import { HostEmptyState, HostPage, HostSection, HostStatCard } from "@/components/host/HostUI"
 import StatusBadge from "@/components/ui/StatusBadge"
 import Spinner from "@/components/ui/Spinner"
+import api from "@/lib/axios"
 
 interface Payment {
   id: string
@@ -38,13 +39,10 @@ export default function PaymentsPage() {
 
   const fetchPayments = async () => {
     try {
-      const response = await fetch("/api/payments")
-      if (response.ok) {
-        const data = await response.json()
-        setPayments(data.data || [])
-        setStats(data.stats)
-        setPendingBalance(data.stats.totalAmount)
-      }
+      const { data } = await api.get("/payments")
+      setPayments(data.data || [])
+      setStats(data.stats)
+      setPendingBalance(data.stats.totalAmount)
     } catch (error) {
       console.error("Error fetching payments:", error)
     } finally {
@@ -60,24 +58,16 @@ export default function PaymentsPage() {
 
     setSubmitting(true)
     try {
-      const response = await fetch("/api/host/payouts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      await api.post("/host/payouts", {
           amount: payoutAmount,
           notes: payoutNotes,
-        }),
       })
 
-      if (response.ok) {
-        alert("Payout request submitted successfully!")
-        setPayoutAmount(0)
-        setPayoutNotes("")
-        setShowPayoutForm(false)
-        fetchPayments()
-      } else {
-        alert("Failed to request payout")
-      }
+      alert("Payout request submitted successfully!")
+      setPayoutAmount(0)
+      setPayoutNotes("")
+      setShowPayoutForm(false)
+      fetchPayments()
     } catch (error) {
       console.error("Error requesting payout:", error)
     } finally {

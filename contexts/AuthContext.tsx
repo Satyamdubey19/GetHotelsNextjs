@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useState } from "react"
 import { signOut } from "next-auth/react"
+import api, { getApiErrorMessage } from "@/lib/axios"
 
 export type AuthRole = "USER" | "HOST" | "ADMIN"
 
@@ -253,16 +254,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       try {
-        const response = await fetch("/api/auth/me", {
-          credentials: "include",
-          cache: "no-store",
+        const { data: payload } = await api.get("/auth/me", {
+          headers: { "Cache-Control": "no-store" },
         })
-
-        if (!response.ok) {
-          throw new Error("No active server session")
-        }
-
-        const payload = await response.json()
         const nextUser = createAuthUserFromApiUser(payload.user)
         if (!cancelled) {
           persistSession(nextUser, setUser)
@@ -287,20 +281,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async (email: string, password: string, expectedRole?: AuthRole) => {
     try {
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email, password, type: expectedRole }),
-      })
-
-      const payload = await response.json()
-
-      if (!response.ok) {
-        throw new Error(payload.error ?? "Failed to login. Please try again.")
-      }
-
+      const { data: payload } = await api.post("/auth/login", { email, password, type: expectedRole })
       const nextUser = createAuthUserFromApiUser(payload.user)
       if (expectedRole && !nextUser.roles.includes(expectedRole)) {
         throw new Error(`This account does not have ${expectedRole.toLowerCase()} access`)
@@ -308,8 +289,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       persistSession(nextUser, setUser)
       return nextUser
     } catch (error) {
-      if (error instanceof Error && !/Failed to fetch|NetworkError|Load failed/i.test(error.message)) {
-        throw error
+      const message = getApiErrorMessage(error)
+      if (!/Network Error|Failed to fetch|NetworkError|Load failed/i.test(message)) {
+        throw new Error(message)
       }
 
       const nextUser = loginFromLocalAccount(email, password)
@@ -322,47 +304,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const signup = async ({ name, email, phone, password, accountType, businessName }: SignupPayload) => {
-    const response = await fetch("/api/auth/register", {
-      method: "POST",
-      credentials: "include",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
+    try {
+      const { data: payload } = await api.post("/auth/register", {
         name,
         email,
         phone,
         password,
         role: accountType === "HOST" ? "host" : "user",
         businessName: accountType === "HOST" ? businessName?.trim() : undefined,
-      }),
-    })
+      })
 
-    const payload = await response.json()
-
-    if (!response.ok) {
-      throw new Error(payload.error ?? "Failed to create account. Please try again.")
+      const nextUser = createAuthUserFromApiUser(payload.user)
+      const fallbackAccount = hydrateAccount({
+        id: nextUser.id,
+        email: nextUser.email,
+        name: nextUser.name,
+        password,
+        role: nextUser.role,
+        roles: nextUser.roles,
+        phone: nextUser.phone,
+        businessName: nextUser.businessName,
+      })
+      const accounts = readAccounts()
+      const nextAccounts = [
+        ...accounts.filter(account => account.email.toLowerCase() !== fallbackAccount.email.toLowerCase()),
+        fallbackAccount,
+      ]
+      writeAccounts(nextAccounts)
+      persistSession(nextUser, setUser)
+      return nextUser
+    } catch (error) {
+      throw new Error(getApiErrorMessage(error, "Failed to create account. Please try again."))
     }
-
-    const nextUser = createAuthUserFromApiUser(payload.user)
-    const fallbackAccount = hydrateAccount({
-      id: nextUser.id,
-      email: nextUser.email,
-      name: nextUser.name,
-      password,
-      role: nextUser.role,
-      roles: nextUser.roles,
-      phone: nextUser.phone,
-      businessName: nextUser.businessName,
-    })
-    const accounts = readAccounts()
-    const nextAccounts = [
-      ...accounts.filter(account => account.email.toLowerCase() !== fallbackAccount.email.toLowerCase()),
-      fallbackAccount,
-    ]
-    writeAccounts(nextAccounts)
-    persistSession(nextUser, setUser)
-    return nextUser
   }
 
   const becomeHost = async ({ businessName, phone }: BecomeHostPayload) => {
@@ -370,23 +343,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       throw new Error("Please log in to activate host access")
     }
 
-    const response = await fetch("/api/auth/me", {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      credentials: "include",
-      body: JSON.stringify({
+    const response = await api.patch("/auth/me", {
         name: user.name,
         email: user.email,
         phone: phone?.trim() || user.phone,
         businessName: businessName.trim(),
         activateHost: true,
-      }),
-    }).catch(() => null)
+      }).catch(() => null)
 
-    if (response?.ok) {
-      const payload = await response.json()
+    if (response) {
+      const payload = response.data
       const nextUser = createAuthUserFromApiUser(payload.user)
       persistSession(nextUser, setUser)
       return nextUser
@@ -431,10 +397,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = async () => {
     persistSession(null, setUser)
 
-    await fetch("/api/auth/logout", {
-      method: "POST",
-      credentials: "include",
-    }).catch(() => undefined)
+    await api.post("/auth/logout").catch(() => undefined)
     await signOut({ redirect: false }).catch(() => undefined)
   }
 

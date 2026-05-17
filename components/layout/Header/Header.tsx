@@ -1,34 +1,79 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState, type ComponentType } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import {
+  BadgeCheck,
+  Bell,
   BookOpen,
   Building2,
   CalendarCheck,
-  ChevronRight,
   Gift,
   Heart,
   HelpCircle,
   ImageIcon,
+  LayoutGrid,
   LogOut,
   Menu,
   Settings,
   Sparkles,
+  Ticket,
   User,
-  X,
+  WalletCards,
 } from "lucide-react"
 import LocationDetector from "@/components/search/LocationDetector"
 import { useWishlist } from "@/contexts/WishlistContext"
 import { useAuth } from "@/contexts/AuthContext"
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet"
 
 const navItems = [
+  { label: "Explore", href: "/" },
   { label: "Tours", href: "/tours" },
-  { label: "Contest", href: "/posts" },
-  { label: "Car Rental", href: "/car-rental" },
+  { label: "Contests", href: "/posts" },
   { label: "Activities", href: "/activities" },
 ]
+
+type MenuLinkProps = {
+  href: string
+  label: string
+  icon: ComponentType<{ size?: number; strokeWidth?: number; className?: string }>
+  active?: boolean
+  badge?: string | number
+  onClick: () => void
+}
+
+function ProfileMenuLink({ href, label, icon: Icon, active, badge, onClick }: MenuLinkProps) {
+  return (
+    <Link
+      href={href}
+      onClick={onClick}
+      className={`group flex min-h-10 items-center gap-3 rounded-xl px-3 py-2 text-sm transition-all duration-200 ease-out ${
+        active
+          ? "bg-slate-950 text-white shadow-[0_8px_24px_rgba(15,23,42,0.22)]"
+          : "text-slate-800 hover:-translate-y-0.5 hover:bg-slate-50 hover:shadow-[0_10px_22px_rgba(15,23,42,0.08)]"
+      }`}
+    >
+      <Icon
+        size={18}
+        strokeWidth={1.9}
+        className={`transition-all duration-200 ease-out ${
+          active ? "text-white" : "text-slate-700 group-hover:-translate-y-0.5 group-hover:text-slate-950"
+        }`}
+      />
+      <span className="flex-1 font-medium transition-transform duration-200 ease-out group-hover:translate-x-0.5">{label}</span>
+      {badge ? (
+        <span
+          className={`rounded-full px-2 py-0.5 text-xs font-semibold transition-all duration-200 ease-out ${
+            active ? "bg-white/20 text-white" : "bg-slate-100 text-slate-700"
+          }`}
+        >
+          {badge}
+        </span>
+      ) : null}
+    </Link>
+  )
+}
 
 const Header = () => {
   const pathname = usePathname()
@@ -38,15 +83,30 @@ const Header = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const { wishlist } = useWishlist()
   const dropdownRef = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const [profileMenuPlacement, setProfileMenuPlacement] = useState<{ openUp: boolean; maxHeight: number }>({
+    openUp: false,
+    maxHeight: 520,
+  })
 
-  const initials = (user?.name || user?.email || "Guest")
+  const profileName = user?.name || "Alexander Mitchell"
+  const profileEmail = user?.email || "alex.mitchell@premium.com"
+  const isHost = user?.role === "HOST" || user?.role === "ADMIN"
+  const avatarInitials = (user?.name || user?.email || "GH")
     .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
     .map((part) => part[0])
     .join("")
-    .slice(0, 2)
     .toUpperCase()
 
-  // Click-outside to close
+  const isActive = (href: string) => {
+    if (href === "/") return pathname === "/"
+    return pathname.startsWith(href)
+  }
+
+  const closeProfile = () => setProfileOpen(false)
+
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
@@ -57,264 +117,246 @@ const Header = () => {
     return () => document.removeEventListener("mousedown", handler)
   }, [profileOpen])
 
-  const isActive = (href: string) => {
-    if (href === "#") return false
-    return pathname.startsWith(href)
-  }
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setProfileOpen(false)
+    }
+    if (profileOpen) document.addEventListener("keydown", handleEsc)
+    return () => document.removeEventListener("keydown", handleEsc)
+  }, [profileOpen])
 
-  const isHost = user?.role === "HOST" || user?.role === "ADMIN"
+  useEffect(() => {
+    if (!profileOpen) return
 
-  const closeProfile = () => setProfileOpen(false)
+    const updateMenuPlacement = () => {
+      const trigger = triggerRef.current
+      if (!trigger) return
+
+      const rect = trigger.getBoundingClientRect()
+      const viewportHeight = window.innerHeight
+      const spaceBelow = viewportHeight - rect.bottom - 12
+      const spaceAbove = rect.top - 12
+      const openUp = spaceBelow < 360 && spaceAbove > spaceBelow
+      const availableSpace = openUp ? spaceAbove : spaceBelow
+      const maxHeight = Math.max(280, Math.min(640, Math.floor(availableSpace)))
+
+      setProfileMenuPlacement({ openUp, maxHeight })
+    }
+
+    updateMenuPlacement()
+    window.addEventListener("resize", updateMenuPlacement)
+    window.addEventListener("scroll", updateMenuPlacement, true)
+
+    return () => {
+      window.removeEventListener("resize", updateMenuPlacement)
+      window.removeEventListener("scroll", updateMenuPlacement, true)
+    }
+  }, [profileOpen])
+
+  const travelerLinks = [
+    { label: "My Profile", href: "/profile", icon: User },
+    { label: "My Bookings", href: "/my-bookings", icon: Ticket },
+    { label: "Wishlist", href: "/wishlist", icon: Heart, badge: wishlist.length ? `(${wishlist.length})` : undefined },
+    { label: "Travel Posts", href: "/posts", icon: ImageIcon },
+  ]
+
+  const hostLinks = [
+    { label: isHost ? "Host Dashboard" : "Become a Host", href: "/host", icon: LayoutGrid },
+    { label: "Manage Listings", href: "/host", icon: Building2 },
+    { label: "Hosting Earnings", href: "/host/payments", icon: WalletCards },
+  ]
 
   return (
-    <header className="sticky top-0 z-50 border-b border-slate-100 bg-white/95 shadow-sm backdrop-blur-xl">
-      <div className="container flex items-center justify-between p-4">
-        <Link href="/" className="flex items-center gap-4 transition hover:opacity-80">
-          <div className="flex size-12 items-center justify-center rounded-full bg-[#081428] text-base font-bold text-white shadow-lg">
-            GH
-          </div>
-          <div className="hidden items-center gap-2 rounded-full bg-slate-100 px-3 py-2 text-slate-600 transition hover:bg-slate-200 lg:flex">
-            <LocationDetector />
-          </div>
-        </Link>
-
-        <nav className="hidden gap-8 text-sm font-medium text-slate-600 md:flex">
-          {navItems.map((item) => {
-            const active = isActive(item.href)
-            return (
-              <Link
-                key={item.label}
-                href={item.href}
-                className={`relative rounded px-2 py-1 transition focus:outline-none focus:ring-2 focus:ring-[#081428] focus:ring-offset-2 ${
-                  active ? "text-[#081428] font-semibold" : "text-slate-600 hover:text-slate-900"
-                }`}
-              >
-                <span>{item.label}</span>
-                <span
-                  className={`absolute bottom-[-0.5rem] left-0 right-0 h-0.5 rounded-full transition-all duration-300 ${
-                    active ? "bg-[#081428]" : "bg-transparent"
-                  }`}
-                />
-              </Link>
-            )
-          })}
-        </nav>
-
-        <div className="flex items-center gap-2">
+    <header className="sticky top-0 z-50 border-b border-slate-200/70 bg-white/95 shadow-[0_1px_20px_rgba(15,23,42,0.05)] backdrop-blur-xl">
+      <div className="mx-auto flex h-14 max-w-[1480px] items-center justify-between px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center gap-2.5">
           <button
             type="button"
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="rounded-xl p-2 transition hover:bg-slate-100 md:hidden"
-            aria-label="Toggle menu"
+            onClick={() => setMobileMenuOpen(true)}
+            className="flex size-9 items-center justify-center rounded-full text-slate-900 transition hover:bg-slate-100 md:hidden"
+            aria-label="Open menu"
           >
-            {mobileMenuOpen ? <X className="size-6 text-slate-700" /> : <Menu className="size-6 text-slate-700" />}
+            <Menu size={19} />
+          </button>
+          <Link href="/" className="group inline-flex items-center gap-2">
+            <span className="flex size-8 items-center justify-center rounded-full bg-[linear-gradient(135deg,#0f172a_0%,#1d4ed8_60%,#06b6d4_100%)] text-[11px] font-black tracking-tight text-white shadow-[0_6px_18px_rgba(29,78,216,0.35)] transition-transform duration-200 group-hover:scale-105">
+              GH
+            </span>
+            <span className="text-[17px] font-black tracking-tight text-slate-950 sm:text-[18px]">GetHotels</span>
+          </Link>
+        </div>
+
+        <nav className="hidden items-center gap-8 text-sm font-medium text-slate-600 md:flex">
+          {navItems.map((item) => (
+            <Link
+              key={item.label}
+              href={item.href}
+              className={`rounded-full px-1.5 py-2 transition ${
+                isActive(item.href) ? "text-slate-950" : "hover:text-slate-950"
+              }`}
+            >
+              {item.label}
+            </Link>
+          ))}
+        </nav>
+
+        <div className="flex items-center gap-3">
+          <div className="hidden min-w-0 max-w-[220px] items-center lg:flex">
+            <LocationDetector />
+          </div>
+          <button
+            type="button"
+            className="flex size-8 items-center justify-center rounded-full text-slate-800 transition hover:bg-slate-100"
+            aria-label="Notifications"
+          >
+            <Bell size={17} strokeWidth={2} />
           </button>
 
           <div
-            className="relative"
+            className="relative z-50"
             ref={dropdownRef}
             onMouseEnter={() => setProfileOpen(true)}
             onMouseLeave={() => setProfileOpen(false)}
           >
-            {/* Profile trigger button */}
             <button
+              ref={triggerRef}
               type="button"
               aria-expanded={profileOpen}
               aria-haspopup="true"
               aria-label={isAuthenticated ? "Open account menu" : "Open sign in menu"}
-              onClick={() => setProfileOpen((v) => !v)}
-              className={`group flex size-11 items-center justify-center rounded-full border bg-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-[#081428] focus:ring-offset-2 ${
-                profileOpen ? "border-[#081428] ring-4 ring-[#081428]/10" : "border-slate-200"
+              onClick={() => setProfileOpen((value) => !value)}
+              className={`flex size-10 items-center justify-center overflow-hidden rounded-full border bg-white p-1 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md ${
+                profileOpen ? "border-slate-400 ring-4 ring-slate-200/70" : "border-slate-200 hover:border-slate-300"
               }`}
             >
-              {isAuthenticated ? (
-                <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#081428] text-[11px] font-black text-white shadow-inner ring-2 ring-[#081428]/20">
-                  {initials}
-                </span>
-              ) : (
-                <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-600 ring-2 ring-slate-50">
-                  <User size={17} />
-                </span>
-              )}
+              <span className="flex size-full overflow-hidden rounded-full border border-slate-200 bg-slate-100">
+                {isAuthenticated ? (
+                  <span className="flex size-full items-center justify-center rounded-full bg-[linear-gradient(135deg,#0f172a_0%,#1d4ed8_55%,#06b6d4_100%)] text-[10px] font-black tracking-[0.04em] text-white">
+                    {avatarInitials}
+                  </span>
+                ) : (
+                  <span className="flex size-full items-center justify-center text-slate-700">
+                    <User size={17} />
+                  </span>
+                )}
+              </span>
             </button>
 
-            {/* ── DROPDOWN PANEL ── */}
-            <div className="absolute right-0 top-full h-3 w-full" />
             <div
-              className={`absolute right-0 top-[calc(100%+12px)] z-[200] flex w-[260px] origin-top-right flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl shadow-slate-200/70 transition-[opacity,transform] duration-200 ease-out ${
+              className={`absolute right-0 z-50 flex w-[min(88vw,340px)] flex-col overflow-hidden overscroll-contain rounded-[22px] border border-slate-200 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.18)] transition-all duration-300 ease-out ${
+                profileMenuPlacement.openUp ? "bottom-[calc(100%+10px)] origin-bottom-right" : "top-[calc(100%+10px)] origin-top-right"
+              } ${
                 profileOpen
-                  ? "pointer-events-auto translate-y-0 scale-100 opacity-100"
-                  : "pointer-events-none -translate-y-1 scale-[0.97] opacity-0"
+                  ? "pointer-events-auto translate-y-0 scale-100 opacity-100 blur-0"
+                  : "pointer-events-none -translate-y-2 scale-[0.97] opacity-0 blur-[1px]"
               }`}
+              style={{ maxHeight: `${profileMenuPlacement.maxHeight}px` }}
             >
               {isAuthenticated ? (
                 <>
-                  {/* ── User card ── */}
-                  <div className="flex-shrink-0 border-b border-slate-100 px-4 py-3">
+                  <div className="border-b border-slate-100 px-4 py-4">
                     <div className="flex items-center gap-3">
-                      <div className="relative flex size-9 shrink-0 items-center justify-center rounded-full bg-slate-900 text-[11px] font-black text-white">
-                        {initials}
-                        <span className="absolute -bottom-0.5 -right-0.5 flex size-3 items-center justify-center rounded-full bg-emerald-400 ring-2 ring-white" />
+                      <div className="size-12 overflow-hidden rounded-full border-2 border-teal-500 bg-slate-100 p-0.5">
+                        {isAuthenticated ? (
+                          <span className="flex size-full items-center justify-center rounded-full bg-[linear-gradient(135deg,#0f172a_0%,#1d4ed8_55%,#06b6d4_100%)] text-sm font-black tracking-[0.04em] text-white">
+                            {avatarInitials}
+                          </span>
+                        ) : (
+                          <span className="flex size-full items-center justify-center rounded-full bg-slate-200 text-slate-700">
+                            <User size={18} />
+                          </span>
+                        )}
                       </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-[13px] font-bold text-slate-900">{user?.name || "Traveler"}</p>
-                        <p className="truncate text-[11px] text-slate-400">{user?.email}</p>
+                      <div className="min-w-0">
+                        <p className="truncate text-base font-semibold text-slate-950">{profileName}</p>
+                        <p className="truncate text-xs text-slate-500">{profileEmail}</p>
                       </div>
-                      <span className="shrink-0 rounded-md border border-slate-200 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500">
-                        {isHost ? "Host" : "Free"}
-                      </span>
+                    </div>
+                    <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-[#8cefe2] px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-teal-900">
+                      <BadgeCheck size={13} />
+                      Gold Tier Member
                     </div>
                   </div>
 
-                  {/* ── Scrollable menu ── */}
-                  <div className="max-h-[280px] overflow-y-auto overscroll-contain px-2 py-1.5 [scrollbar-width:thin]">
-                    {/* Account group */}
-                    <p className="px-2 pb-0.5 pt-1 text-[10px] font-bold uppercase tracking-widest text-slate-400">Account</p>
-                    {[
-                      { label: "My Profile", href: "/profile", icon: User },
-                      { label: "My Bookings", href: "/profile", icon: CalendarCheck },
-                      { label: "Wishlist", href: "/wishlist", icon: Heart, badge: wishlist.length },
-                      { label: "Travel Posts", href: "/posts", icon: ImageIcon },
-                    ].map((item) => (
-                      <Link
-                        key={item.label}
-                        href={item.href}
-                        onClick={closeProfile}
-                        className="group flex items-center gap-2.5 rounded-xl px-2 py-1.5 transition hover:bg-slate-50"
-                      >
-                        <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500 transition group-hover:bg-slate-200">
-                          <item.icon size={14} strokeWidth={2} />
-                        </span>
-                        <span className="flex-1 text-[13px] font-medium text-slate-700 group-hover:text-slate-900">{item.label}</span>
-                        {item.badge && item.badge > 0 ? (
-                          <span className="rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-bold text-white">{item.badge}</span>
-                        ) : (
-                          <ChevronRight size={13} className="text-slate-300 opacity-0 group-hover:opacity-100" />
-                        )}
-                      </Link>
-                    ))}
+                  <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3 [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb:hover]:bg-slate-400">
+                    <p className="px-3 pb-2 text-[10px] font-bold uppercase tracking-[0.26em] text-slate-400">Traveler</p>
+                    <div className="space-y-1">
+                      {travelerLinks.map((item) => (
+                        <ProfileMenuLink
+                          key={item.label}
+                          href={item.href}
+                          label={item.label}
+                          icon={item.icon}
+                          badge={item.badge}
+                          active={isActive(item.href)}
+                          onClick={closeProfile}
+                        />
+                      ))}
+                    </div>
 
-                    {/* Property group */}
-                    <p className="px-2 pb-0.5 pt-2.5 text-[10px] font-bold uppercase tracking-widest text-slate-400">Property</p>
-                    <Link href="/host" onClick={closeProfile} className="group flex items-center gap-2.5 rounded-xl px-2 py-1.5 transition hover:bg-slate-50">
-                      <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500 transition group-hover:bg-slate-200">
-                        <Building2 size={14} strokeWidth={2} />
-                      </span>
-                      <span className="flex-1 text-[13px] font-medium text-slate-700 group-hover:text-slate-900">
-                        {isHost ? "Host Dashboard" : "Become a Host"}
-                      </span>
-                      {!isHost && <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500">Earn</span>}
-                      <ChevronRight size={13} className="text-slate-300 opacity-0 group-hover:opacity-100" />
-                    </Link>
-                    <Link href="/profile" onClick={closeProfile} className="group flex items-center gap-2.5 rounded-xl px-2 py-1.5 transition hover:bg-slate-50">
-                      <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500 transition group-hover:bg-slate-200">
-                        <Gift size={14} strokeWidth={2} />
-                      </span>
-                      <span className="flex-1 text-[13px] font-medium text-slate-700 group-hover:text-slate-900">Rewards & Referrals</span>
-                      <ChevronRight size={13} className="text-slate-300 opacity-0 group-hover:opacity-100" />
-                    </Link>
+                    <div className="my-3 border-t border-slate-100" />
+                    <p className="px-3 pb-2 text-[10px] font-bold uppercase tracking-[0.26em] text-slate-400">Host</p>
+                    <div className="space-y-1">
+                      {hostLinks.map((item) => (
+                        <ProfileMenuLink
+                          key={item.label}
+                          href={item.href}
+                          label={item.label}
+                          icon={item.icon}
+                          active={isActive(item.href)}
+                          onClick={closeProfile}
+                        />
+                      ))}
+                    </div>
 
-                    {/* More group */}
-                    <p className="px-2 pb-0.5 pt-2.5 text-[10px] font-bold uppercase tracking-widest text-slate-400">More</p>
-                    {[
-                      { label: "Settings", href: "/profile", icon: Settings },
-                      { label: "Help & Support", href: "/terms", icon: HelpCircle },
-                    ].map((item) => (
-                      <Link key={item.label} href={item.href} onClick={closeProfile} className="group flex items-center gap-2.5 rounded-xl px-2 py-1.5 transition hover:bg-slate-50">
-                        <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500 transition group-hover:bg-slate-200">
-                          <item.icon size={14} strokeWidth={2} />
-                        </span>
-                        <span className="flex-1 text-[13px] font-medium text-slate-700 group-hover:text-slate-900">{item.label}</span>
-                        <ChevronRight size={13} className="text-slate-300 opacity-0 group-hover:opacity-100" />
-                      </Link>
-                    ))}
-                  </div>
+                    <div className="my-3 border-t border-slate-100" />
+                    <div className="space-y-1">
+                      <ProfileMenuLink href="/profile" label="Rewards & Referrals" icon={Gift} onClick={closeProfile} />
+                      <ProfileMenuLink href="/profile" label="Settings" icon={Settings} onClick={closeProfile} />
+                      <ProfileMenuLink href="/terms" label="Help & Support" icon={HelpCircle} onClick={closeProfile} />
+                    </div>
 
-                  {/* ── Sign out ── */}
-                  <div className="flex-shrink-0 border-t border-slate-100 px-2 py-1.5">
                     <button
                       type="button"
-                      onClick={() => { logout(); closeProfile(); router.push("/login") }}
-                      className="group flex w-full items-center gap-2.5 rounded-xl px-2 py-1.5 transition hover:bg-red-50"
+                      onClick={() => {
+                        logout()
+                        closeProfile()
+                        router.push("/login")
+                      }}
+                      className="mt-3 flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-red-100 bg-white text-sm font-semibold text-red-600 transition hover:bg-red-50"
                     >
-                      <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500 transition group-hover:bg-red-100 group-hover:text-red-500">
-                        <LogOut size={14} strokeWidth={2} />
-                      </span>
-                      <span className="text-[13px] font-medium text-slate-700 group-hover:text-red-600">Sign out</span>
+                      <LogOut size={17} />
+                      Sign Out
                     </button>
                   </div>
                 </>
               ) : (
                 <>
-                  {/* ── Guest ── */}
-                  <div className="border-b border-slate-100 px-4 py-3">
-                    <p className="text-[13px] font-bold text-slate-900">Welcome to GetHotels</p>
-                    <p className="mt-0.5 text-[11px] text-slate-400">Sign in or create an account.</p>
+                  <div className="border-b border-slate-100 px-4 py-4">
+                    <p className="text-base font-semibold text-slate-950">Welcome to GetHotels</p>
+                    <p className="mt-1 text-sm text-slate-500">Sign in to manage bookings, wishlist stays, and host listings.</p>
                   </div>
-
-                  <div className="px-2 py-1.5">
-                    {/* Traveler */}
-                    <p className="px-2 pb-0.5 pt-1 text-[10px] font-bold uppercase tracking-widest text-slate-400">Traveler</p>
-                    <Link
-                      href="/login"
-                      onClick={closeProfile}
-                      className="group flex items-center gap-2.5 rounded-xl px-2 py-1.5 transition hover:bg-slate-50"
-                    >
-                      <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500 transition group-hover:bg-slate-200">
-                        <User size={14} strokeWidth={2} />
-                      </span>
-                      <span className="text-[13px] font-medium text-slate-700 group-hover:text-slate-900">Sign In</span>
-                    </Link>
-                    <Link
-                      href="/signup"
-                      onClick={closeProfile}
-                      className="group flex items-center gap-2.5 rounded-xl px-2 py-1.5 transition hover:bg-slate-50"
-                    >
-                      <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500 transition group-hover:bg-slate-200">
-                        <Sparkles size={14} strokeWidth={2} />
-                      </span>
-                      <span className="text-[13px] font-medium text-slate-700 group-hover:text-slate-900">Create Account</span>
-                    </Link>
-
-                    {/* Host */}
-                    <p className="px-2 pb-0.5 pt-2.5 text-[10px] font-bold uppercase tracking-widest text-slate-400">Host</p>
-                    <Link
-                      href="/login?role=HOST"
-                      onClick={closeProfile}
-                      className="group flex items-center gap-2.5 rounded-xl px-2 py-1.5 transition hover:bg-slate-50"
-                    >
-                      <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500 transition group-hover:bg-slate-200">
-                        <Building2 size={14} strokeWidth={2} />
-                      </span>
-                      <span className="text-[13px] font-medium text-slate-700 group-hover:text-slate-900">Host Sign In</span>
-                    </Link>
-                    <Link
-                      href="/host/signup"
-                      onClick={closeProfile}
-                      className="group flex items-center gap-2.5 rounded-xl px-2 py-1.5 transition hover:bg-slate-50"
-                    >
-                      <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500 transition group-hover:bg-slate-200">
-                        <BookOpen size={14} strokeWidth={2} />
-                      </span>
-                      <span className="text-[13px] font-medium text-slate-700 group-hover:text-slate-900">List Your Property</span>
-                    </Link>
-
-                    {wishlist.length > 0 && (
-                      <>
-                        <div className="mx-2 my-2 border-t border-slate-100" />
-                        <Link
+                  <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3 [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb:hover]:bg-slate-400">
+                    <p className="px-3 pb-2 text-[10px] font-bold uppercase tracking-[0.26em] text-slate-400">Traveler</p>
+                    <div className="space-y-1">
+                      <ProfileMenuLink href="/login" label="Sign In" icon={User} onClick={closeProfile} />
+                      <ProfileMenuLink href="/signup" label="Create Account" icon={Sparkles} onClick={closeProfile} />
+                      {wishlist.length > 0 ? (
+                        <ProfileMenuLink
                           href="/wishlist"
+                          label="Your Wishlist"
+                          icon={Heart}
+                          badge={`(${wishlist.length})`}
                           onClick={closeProfile}
-                          className="group flex items-center gap-2.5 rounded-xl px-2 py-1.5 transition hover:bg-slate-50"
-                        >
-                          <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500 transition group-hover:bg-slate-200">
-                            <Heart size={14} strokeWidth={2} />
-                          </span>
-                          <span className="flex-1 text-[13px] font-medium text-slate-700 group-hover:text-slate-900">My Wishlist</span>
-                          <span className="rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-bold text-white">{wishlist.length}</span>
-                        </Link>
-                      </>
-                    )}
+                        />
+                      ) : null}
+                    </div>
+                    <div className="my-3 border-t border-slate-100" />
+                    <p className="px-3 pb-2 text-[10px] font-bold uppercase tracking-[0.26em] text-slate-400">Host</p>
+                    <div className="space-y-1">
+                      <ProfileMenuLink href="/login?role=HOST" label="Host Sign In" icon={Building2} onClick={closeProfile} />
+                      <ProfileMenuLink href="/host/signup" label="List Your Property" icon={BookOpen} onClick={closeProfile} />
+                    </div>
                   </div>
                 </>
               )}
@@ -323,29 +365,69 @@ const Header = () => {
         </div>
       </div>
 
-      {mobileMenuOpen && (
-        <div className="border-t border-slate-100 bg-white md:hidden">
-          <nav className="container flex flex-col py-2">
-            {navItems.map((item) => {
-              const active = isActive(item.href)
-              return (
-                <Link
-                  key={item.label}
-                  href={item.href}
-                  onClick={() => setMobileMenuOpen(false)}
-                  className={`border-l-2 px-4 py-3 text-sm font-medium transition ${
-                    active
-                      ? "border-[#081428] bg-[#081428]/5 text-[#081428] font-semibold"
-                      : "border-transparent text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-                  }`}
-                >
-                  {item.label}
-                </Link>
-              )
-            })}
-          </nav>
-        </div>
-      )}
+      <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+        <SheetContent side="left" className="inset-y-0 flex h-dvh max-h-dvh flex-col overflow-y-auto rounded-r-[32px]">
+          <SheetTitle className="sr-only">Mobile navigation</SheetTitle>
+          <div className="relative overflow-hidden bg-[linear-gradient(135deg,#020617_0%,#0f172a_45%,#1e293b_100%)] px-5 pb-6 pt-14 text-white">
+            <div className="pointer-events-none absolute -right-10 -top-10 h-24 w-24 rounded-full bg-cyan-400/20 blur-2xl" />
+            <div className="pointer-events-none absolute -bottom-8 -left-10 h-20 w-20 rounded-full bg-blue-400/20 blur-2xl" />
+            <div className="flex items-center gap-4">
+              <div className="size-14 overflow-hidden rounded-full border-2 border-[#5EEAD4] bg-white/10 p-0.5">
+                {isAuthenticated ? (
+                  <span className="flex size-full items-center justify-center rounded-full bg-[linear-gradient(135deg,#0f172a_0%,#1d4ed8_55%,#06b6d4_100%)] text-base font-black tracking-[0.04em] text-white">
+                    {avatarInitials}
+                  </span>
+                ) : (
+                  <span className="flex size-full items-center justify-center rounded-full bg-white/10">
+                    <User size={22} />
+                  </span>
+                )}
+              </div>
+              <div className="min-w-0">
+                <p className="truncate text-lg font-semibold">{isAuthenticated ? profileName : "Welcome Traveler"}</p>
+                <p className="truncate text-xs text-white/55">{isAuthenticated ? profileEmail : "Sign in to unlock trips"}</p>
+              </div>
+            </div>
+            <div className="mt-5 inline-flex items-center gap-2 rounded-full bg-[#5EEAD4] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-teal-950">
+              <BadgeCheck size={14} />
+              Gold Tier Member
+            </div>
+          </div>
+
+          <div className="flex min-h-0 flex-1 flex-col px-4 py-5">
+            <p className="px-3 pb-3 text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Explore</p>
+            <div className="flex-1 space-y-2">
+              {[
+                { label: "Explore", href: "/", icon: Sparkles },
+                { label: "Tours", href: "/tours", icon: Ticket },
+                { label: "Contests", href: "/posts", icon: Gift },
+                { label: "Activities", href: "/activities", icon: CalendarCheck },
+              ].map((item, index) => {
+                const active = isActive(item.href)
+                const Icon = item.icon
+                return (
+                  <Link
+                    key={item.label}
+                    href={item.href}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`group flex min-h-11 items-center gap-3 rounded-2xl px-3 text-sm font-semibold transition-all duration-300 ${
+                      active
+                        ? "bg-slate-950 text-white shadow-[0_10px_22px_rgba(15,23,42,0.25)]"
+                        : "text-slate-700 hover:-translate-y-0.5 hover:bg-slate-50 hover:shadow-[0_10px_22px_rgba(15,23,42,0.08)]"
+                    }`}
+                    style={{ transitionDelay: `${index * 40}ms` }}
+                  >
+                    <span className={`flex size-8 items-center justify-center rounded-xl transition-all duration-300 ${active ? "bg-white/15" : "bg-slate-100 group-hover:bg-white"}`}>
+                      <Icon size={16} className={`${active ? "text-white" : "text-slate-700"}`} />
+                    </span>
+                    <span>{item.label}</span>
+                  </Link>
+                )
+              })}
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
     </header>
   )
 }

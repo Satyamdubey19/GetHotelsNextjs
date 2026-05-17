@@ -35,6 +35,7 @@ import {
 } from "lucide-react"
 import PhotoUploader from "@/components/ui/PhotoUploader"
 import type { ItineraryDay, TourForm } from "@/types/host-forms"
+import api, { getApiErrorMessage } from "@/lib/axios"
 
 type FieldErrors = Record<string, string>
 type Toast = { type: "success" | "error"; message: string } | null
@@ -319,9 +320,8 @@ export default function HostTourForm() {
   const fetchTour = async () => {
     try {
       setLoading(true)
-      const res = await fetch(`/api/tour/${tourId}?scope=mine`)
-      if (!res.ok) throw new Error("Could not load tour")
-      const { data } = await res.json()
+      const { data: payload } = await api.get(`/tour/${tourId}?scope=mine`)
+      const { data } = payload
       setForm((prev: TourForm) => ({
         ...prev,
         ...data,
@@ -451,21 +451,17 @@ export default function HostTourForm() {
         tags: (form.tags || []).filter(Boolean),
         availableSlots: String(Math.min(Number(form.availableSlots) || 0, Number(form.totalSlots) || 0)),
       }
-      const res = await fetch(isEdit ? `/api/tour/${tourId}` : "/api/tour", {
-        method: isEdit ? "PUT" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      })
-      if (!res.ok) {
-        const payload = await res.json().catch(() => ({}))
-        throw new Error(payload.error || "Could not save tour")
+      if (isEdit) {
+        await api.put(`/tour/${tourId}`, payload)
+      } else {
+        await api.post("/tour", payload)
       }
       window.localStorage.removeItem(draftKey)
       setDirty(false)
       setToast({ type: "success", message: isEdit ? "Tour changes saved." : "Tour created and sent to review." })
       router.push("/host")
     } catch (error) {
-      setToast({ type: "error", message: error instanceof Error ? error.message : "Could not save tour." })
+      setToast({ type: "error", message: getApiErrorMessage(error, "Could not save tour.") })
     } finally {
       setSubmitting(false)
     }

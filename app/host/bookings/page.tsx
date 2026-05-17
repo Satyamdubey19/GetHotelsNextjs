@@ -5,6 +5,7 @@ import { BarChart3, CalendarCheck, CheckCircle2, ChevronDown, Clock, Filter, Hot
 import { HostEmptyState, HostPage, HostPill, HostSection, HostStatCard } from "@/components/host/HostUI"
 import Spinner from "@/components/ui/Spinner"
 import type { HostBooking as Booking, HostBookingActionProps } from "@/types/host-pages"
+import api from "@/lib/axios"
 
 const statusConfig = {
   pending: { label: "Pending", tone: "amber" },
@@ -35,19 +36,16 @@ export default function BookingsPage() {
       const params = new URLSearchParams()
       if (filterStatus !== "all") params.set("status", filterStatus)
       if (filterType !== "all") params.set("type", filterType)
-      const url = `/api/host/bookings${params.toString() ? `?${params.toString()}` : ""}`
+      const url = `/host/bookings${params.toString() ? `?${params.toString()}` : ""}`
 
-      const response = await fetch(url)
-      if (response.ok) {
-        const { data, meta } = await response.json()
-        setBookings(data || [])
-        setStats(meta?.stats ?? {
-          totalBookings: 0,
-          confirmedBookings: 0,
-          pendingBookings: 0,
-          totalRevenue: 0,
-        })
-      }
+      const { data: payload } = await api.get(url)
+      setBookings(payload.data || [])
+      setStats(payload.meta?.stats ?? {
+        totalBookings: 0,
+        confirmedBookings: 0,
+        pendingBookings: 0,
+        totalRevenue: 0,
+      })
     } catch (error) {
       console.error("Error fetching bookings:", error)
     } finally {
@@ -57,13 +55,8 @@ export default function BookingsPage() {
 
   const updateBookingStatus = async (bookingId: string, newStatus: string) => {
     try {
-      const response = await fetch("/api/host/bookings", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ bookingId, status: newStatus }),
-      })
-
-      if (response.ok) void fetchBookings()
+      await api.put("/host/bookings", { bookingId, status: newStatus })
+      void fetchBookings()
     } catch (error) {
       console.error("Error updating booking:", error)
       alert("Failed to update booking")

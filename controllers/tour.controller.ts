@@ -13,6 +13,7 @@ import {
   listPublicTours,
   listTourParticipants,
   getTourChatPreview,
+  sendTourChatMessage,
   getPublicTourBySlug,
   getTourById,
   normalizeTourForForm,
@@ -154,6 +155,7 @@ function errorStatus(message: string) {
   if (message.includes("not found")) return 404
   if (message.includes("Unauthorized")) return 401
   if (message.includes("host") || message.includes("Forbidden")) return 403
+  if (message.includes("unlock group chat")) return 403
   if (
     message.includes("already") ||
     message.includes("slots") ||
@@ -267,15 +269,38 @@ export const listTourParticipantsController = async (_req: NextRequest, tourId: 
 }
 
 export const getTourChatController = async (_req: NextRequest, tourId: string) => {
+  const scope = new URL(_req.url).searchParams.get("scope") === "participant" ? "participant" : "host-or-participant"
   try {
     const userId = await getAuthenticatedUserId()
     if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-    const data = await getTourChatPreview(userId, tourId)
+    const data = await getTourChatPreview(userId, tourId, scope)
     return NextResponse.json({ success: true, data })
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to fetch tour chat"
-    console.error("GET /api/tour/[id]/chat:", error)
+    const isExpectedAccessLock = scope === "participant" && message.includes("unlock group chat")
+    if (!isExpectedAccessLock) {
+      console.error("GET /api/tour/[id]/chat:", error)
+    }
+    return NextResponse.json({ error: message }, { status: errorStatus(message) })
+  }
+}
+
+export const sendTourChatMessageController = async (req: NextRequest, tourId: string) => {
+  const scope = new URL(req.url).searchParams.get("scope") === "participant" ? "participant" : "host-or-participant"
+  try {
+    const userId = await getAuthenticatedUserId()
+    if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+    const body = await req.json().catch(() => ({})) as { message?: string }
+    const data = await sendTourChatMessage(userId, tourId, String(body.message ?? ""), scope)
+    return NextResponse.json({ success: true, data }, { status: 201 })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to send tour message"
+    const isExpectedAccessLock = scope === "participant" && message.includes("unlock group chat")
+    if (!isExpectedAccessLock) {
+      console.error("POST /api/tour/[id]/chat:", error)
+    }
     return NextResponse.json({ error: message }, { status: errorStatus(message) })
   }
 }

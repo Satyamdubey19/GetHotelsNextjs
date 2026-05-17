@@ -10,6 +10,7 @@ import FormLabel from '@/components/ui/FormLabel';
 import SocialAuthButton from '@/components/ui/SocialAuthButton';
 import Alert from '@/components/ui/Alert';
 import { signIn } from 'next-auth/react';
+import api, { getApiErrorMessage } from '@/lib/axios';
 
 interface SignupFormProps {
   initialAccountType?: 'USER' | 'HOST';
@@ -66,22 +67,14 @@ export default function SignupForm({ initialAccountType = 'USER' }: SignupFormPr
 
     setLoading(true);
     try {
-      const response = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      await api.post('/auth/register', {
           name,
           email,
           phone,
           password,
           role: accountType === 'HOST' ? 'host' : 'user',
           businessName: accountType === 'HOST' ? businessName : undefined,
-        }),
       });
-      const payload = await response.json();
-      if (!response.ok) {
-        throw new Error(payload.error ?? 'Failed to create account. Please try again.');
-      }
       const res = await signIn('credentials', {
         redirect: false,
         email,
@@ -97,7 +90,7 @@ export default function SignupForm({ initialAccountType = 'USER' }: SignupFormPr
       router.refresh();
       window.location.assign(nextUrl);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create account. Please try again.');
+      setError(getApiErrorMessage(err, 'Failed to create account. Please try again.'));
       console.error(err);
     } finally {
       setLoading(false);
